@@ -1,0 +1,911 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>통합LMS · GrammarFit 프로토타입 v0.1</title>
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" />
+  <link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" rel="stylesheet" />
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body, #root { height: 100%; }
+    body { font-family: 'Pretendard', 'Apple SD Gothic Neo', -apple-system, sans-serif; }
+    select, input, button { font-family: inherit; }
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #F6F7F8; }
+    ::-webkit-scrollbar-thumb { background: #CBD2D7; border-radius: 3px; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel">
+    const { useState } = React;
+
+// ─── 실제 통합LMS 디자인 토큰 (Figma 기준) ──────────────────────────────
+const C = {
+  dark: "#0B0D11",
+  grey8: "#394046",
+  grey6: "#6A747C",
+  grey5: "#8C98A1",
+  grey4: "#AEB9C3",
+  grey3: "#CBD2D7",
+  grey2: "#DDE1E4",
+  grey1: "#F6F7F8",
+  white: "#FFFFFF",
+  lightBlue6: "#049EDC",
+  lightBlue1: "#EDF8FC",
+  deepPurple5: "#8154D4",
+  green6: "#4CAF50",
+  green1: "#E8F5E9",
+  orange6: "#FF9800",
+  orange1: "#FFF3E0",
+  red6: "#F44336",
+  red1: "#FFEBEE",
+};
+
+const F = {
+  h1: { fontFamily: "'Pretendard', sans-serif", fontWeight: 700, fontSize: 24, lineHeight: 1.6 },
+  h2: { fontFamily: "'Pretendard', sans-serif", fontWeight: 700, fontSize: 20, lineHeight: 1.4 },
+  h3: { fontFamily: "'Pretendard', sans-serif", fontWeight: 700, fontSize: 18, lineHeight: 1.4 },
+  sub3: { fontFamily: "'Pretendard', sans-serif", fontWeight: 700, fontSize: 16, lineHeight: 1.4 },
+  sub2: { fontFamily: "'Pretendard', sans-serif", fontWeight: 500, fontSize: 18, lineHeight: 1.4 },
+  body2: { fontFamily: "'Pretendard', sans-serif", fontWeight: 500, fontSize: 16, lineHeight: 1.4 },
+  caption: { fontFamily: "'Pretendard', sans-serif", fontWeight: 500, fontSize: 14, lineHeight: 1.4 },
+  overline: { fontFamily: "'Pretendard', sans-serif", fontWeight: 500, fontSize: 13, lineHeight: 1.4 },
+};
+
+// ─── 더미 데이터 ─────────────────────────────────────────────────────────
+const STUDENTS = [
+  { id: 1, name: "김민준", grade: "중2", lesson: "Starter Lesson 24", score: 85, date: "2026-05-20", type: "기본" },
+  { id: 2, name: "이서연", grade: "중1", lesson: "기초평가 1", score: 72, date: "2026-05-20", type: "기초평가" },
+  { id: 3, name: "박지호", grade: "중3", lesson: "총괄평가 1", score: 91, date: "2026-05-19", type: "총괄평가" },
+  { id: 4, name: "최유나", grade: "중1", lesson: "Starter Lesson 12", score: 68, date: "2026-05-19", type: "기본" },
+  { id: 5, name: "정도윤", grade: "중2", lesson: "Starter Lesson 36 (복습)", score: 78, date: "2026-05-18", type: "복습" },
+];
+
+const HISTORY = [
+  { id: 1, lesson: "Starter Lesson 24", type: "기본", date: "2026-05-20", score: 85, coaching: false },
+  { id: 2, lesson: "Starter Lesson 23 (복습)", type: "복습", date: "2026-05-18", score: 72, coaching: true },
+  { id: 3, lesson: "Starter Lesson 22", type: "기본", date: "2026-05-16", score: 90, coaching: false },
+  { id: 4, lesson: "기초평가 1", type: "기초평가", date: "2026-05-14", score: 76, coaching: false },
+  { id: 5, lesson: "Starter Lesson 21", type: "기본", date: "2026-05-12", score: 88, coaching: false },
+  { id: 6, lesson: "총괄평가 1", type: "총괄평가", date: "2026-05-10", score: 83, coaching: false },
+];
+
+// ─── 공통 UI ──────────────────────────────────────────────────────────────
+
+// 배지 (통합LMS 스타일: 테두리형 또는 배경형)
+const Badge = ({ text, variant = "outline", color = "blue" }) => {
+  const map = {
+    blue:   { bg: C.lightBlue1, border: C.lightBlue6, text: C.lightBlue6 },
+    green:  { bg: C.green1, border: C.green6, text: C.green6 },
+    orange: { bg: C.orange1, border: C.orange6, text: C.orange6 },
+    red:    { bg: C.red1, border: C.red6, text: C.red6 },
+    gray:   { bg: C.grey1, border: C.grey4, text: C.grey6 },
+    purple: { bg: "#EDE7F6", border: C.deepPurple5, text: C.deepPurple5 },
+  };
+  const c = map[color] || map.blue;
+  return (
+    <span style={{
+      display: "inline-flex", alignItems: "center",
+      padding: "0 8px", height: 22,
+      border: variant === "outline" ? `1px solid ${c.border}` : "none",
+      background: variant === "fill" ? c.bg : "transparent",
+      borderRadius: 999,
+      ...F.overline, color: c.text,
+      whiteSpace: "nowrap", flexShrink: 0,
+    }}>{text}</span>
+  );
+};
+
+// 모달 기본 구조
+const Modal = ({ title, onClose, children, width = 720 }) => (
+  <div style={{
+    position: "fixed", inset: 0, background: "rgba(11,13,17,0.5)",
+    display: "flex", alignItems: "center", justifyContent: "center",
+    zIndex: 1000, padding: 20,
+  }} onClick={onClose}>
+    <div style={{
+      background: C.white, borderRadius: 12, width, maxWidth: "95vw",
+      maxHeight: "90vh", display: "flex", flexDirection: "column",
+      boxShadow: "0 8px 32px rgba(0,0,0,0.18)",
+    }} onClick={e => e.stopPropagation()}>
+      {/* 모달 헤더 */}
+      <div style={{
+        display: "flex", alignItems: "center", justifyContent: "space-between",
+        padding: "16px 24px", borderBottom: `1px solid ${C.grey2}`,
+      }}>
+        <span style={{ ...F.h3, color: C.dark }}>{title}</span>
+        <button onClick={onClose} style={{
+          border: "none", background: "none", cursor: "pointer",
+          ...F.h2, color: C.grey5, lineHeight: 1, padding: "0 4px",
+        }}>×</button>
+      </div>
+      <div style={{ overflowY: "auto", flex: 1 }}>{children}</div>
+    </div>
+  </div>
+);
+
+// 반원 게이지
+const Gauge = ({ score, size = 120 }) => {
+  const r = size / 2 - 10;
+  const circ = Math.PI * r;
+  const col = score >= 80 ? C.green6 : score >= 60 ? C.orange6 : C.red6;
+  const label = score >= 80 ? "우수" : score >= 60 ? "보통" : "부족";
+  return (
+    <div style={{ position: "relative", width: size, height: size / 2 + 20 }}>
+      <svg width={size} height={size} style={{ position: "absolute", top: 0 }}>
+        <path d={`M ${10} ${size/2} A ${r} ${r} 0 0 1 ${size-10} ${size/2}`}
+          fill="none" stroke={C.grey2} strokeWidth={10} strokeLinecap="round"/>
+        <path d={`M ${10} ${size/2} A ${r} ${r} 0 0 1 ${size-10} ${size/2}`}
+          fill="none" stroke={col} strokeWidth={10} strokeLinecap="round"
+          strokeDasharray={circ} strokeDashoffset={circ * (1 - score / 100)}/>
+      </svg>
+      <div style={{ position: "absolute", bottom: 0, width: "100%", textAlign: "center" }}>
+        <div style={{ ...F.h1, color: col }}>{score}</div>
+        <div style={{ ...F.overline, color: C.grey6 }}>{label}</div>
+      </div>
+    </div>
+  );
+};
+
+// ─── 사이드 메뉴 (통합LMS 실제 스타일) ───────────────────────────────────
+const MENUS = [
+  { id: "home", label: "홈" },
+  { id: "students", label: "학생관리" },
+  { id: "diagnosis", label: "진단평가" },
+  { id: "alimtalk", label: "알림톡" },
+  { id: "tips", label: "Tips!" },
+];
+
+const SideMenu = ({ active, setActive }) => (
+  <div style={{
+    width: 180, background: C.white, borderRight: `1px solid ${C.grey2}`,
+    height: "100vh", display: "flex", flexDirection: "column",
+    position: "sticky", top: 0, flexShrink: 0,
+    paddingTop: 40, paddingBottom: 60, paddingLeft: 20, paddingRight: 20,
+    justifyContent: "space-between",
+  }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+      {MENUS.slice(0, 4).map(m => (
+        <div key={m.id} onClick={() => setActive(m.id)} style={{
+          display: "flex", alignItems: "center", gap: 8,
+          padding: 8, borderRadius: 8, cursor: "pointer",
+          background: active === m.id ? C.lightBlue1 : "transparent",
+        }}>
+          <span style={{
+            ...F.h2, color: active === m.id ? C.lightBlue6 : C.grey8,
+          }}>{m.label}</span>
+        </div>
+      ))}
+    </div>
+    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+      <div style={{ borderBottom: `1px solid ${C.grey5}`, paddingBottom: 12 }}>
+        <span style={{ ...F.sub2, color: C.grey8 }}>바로가기</span>
+      </div>
+      <span style={{ ...F.body2, color: C.lightBlue6, cursor: "pointer" }}>Tips!</span>
+      <span style={{ ...F.caption, color: C.grey8, cursor: "pointer" }}>로그아웃</span>
+    </div>
+  </div>
+);
+
+// ─── 헤더 (통합LMS 실제 스타일) ───────────────────────────────────────────
+const Header = () => (
+  <div style={{
+    height: 80, background: C.white, borderBottom: `1px solid ${C.grey2}`,
+    display: "flex", alignItems: "center", justifyContent: "space-between",
+    padding: "0 40px", position: "sticky", top: 0, zIndex: 100, flexShrink: 0,
+  }}>
+    <div style={{ display: "flex", alignItems: "center", gap: 40 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+        <span style={{ fontSize: 32, color: C.grey5 }}>☰</span>
+        <span style={{
+          ...F.h1,
+          background: "linear-gradient(100.86deg, #2562FF 1.96%, #00B5FF 94.49%)",
+          WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent",
+        }}>LMS</span>
+      </div>
+      <div style={{ display: "flex", gap: 8 }}>
+        {["[LC] 스타시티", "우새미 선생님"].map((t, i) => (
+          <div key={i} style={{
+            display: "flex", alignItems: "center", gap: 8,
+            border: `1px solid ${C.grey3}`, borderRadius: 999,
+            height: 48, padding: "0 16px", minWidth: 120, maxWidth: 220, background: C.white,
+          }}>
+            <span style={{ ...F.body2, color: C.dark, flex: 1 }}>{t}</span>
+            <span style={{ color: C.grey5, fontSize: 12 }}>▾</span>
+          </div>
+        ))}
+      </div>
+    </div>
+    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+      <span style={{ ...F.overline, color: C.grey5 }}>한국 시간으로 보기</span>
+      <div style={{ width: 40, height: 22, borderRadius: 999, background: C.grey3, position: "relative", cursor: "pointer" }}>
+        <div style={{ width: 18, height: 18, borderRadius: "50%", background: C.white, position: "absolute", top: 2, left: 2, boxShadow: "0 1px 3px rgba(0,0,0,0.2)" }} />
+      </div>
+    </div>
+  </div>
+);
+
+// ─── 풀이화면 모달 ────────────────────────────────────────────────────────
+const PlayModal = ({ lesson, onClose }) => {
+  const [tab, setTab] = useState("lesson");
+  const questions = [
+    { no: 1, type: "문법", content: "다음 빈칸에 알맞은 것을 고르시오.", sentence: "She _____ to school every day.", options: ["go", "goes", "going", "gone"], correct: 1, answer: 1 },
+    { no: 2, type: "어휘", content: "다음 단어의 알맞은 뜻을 고르시오.", sentence: "beautiful", options: ["슬픈", "아름다운", "빠른", "작은"], correct: 1, answer: 2 },
+    { no: 3, type: "문법", content: "올바른 문장을 고르시오.", sentence: "", options: ["He don't like coffee.", "She doesn't likes tea.", "They doesn't go.", "I don't know."], correct: 3, answer: 3 },
+    { no: 4, type: "문법", content: "빈칸에 알맞은 단어를 고르시오.", sentence: "We _____ best friends.", options: ["is", "am", "are", "be"], correct: 2, answer: 2 },
+    { no: 5, type: "어휘", content: "반대말을 고르시오.", sentence: "big", options: ["large", "huge", "small", "tall"], correct: 2, answer: 0 },
+  ];
+  const displayed = tab === "wrongnote" ? questions.filter(q => q.answer !== q.correct) : questions;
+  const wrongCount = questions.filter(q => q.answer !== q.correct).length;
+
+  return (
+    <Modal title={`풀이화면 · ${lesson}`} onClose={onClose} width={760}>
+      {/* 탭 */}
+      <div style={{ display: "flex", borderBottom: `1px solid ${C.grey2}`, padding: "0 24px" }}>
+        {[["lesson", "레슨학습"], ["wrongnote", `오답노트 (${wrongCount})`]].map(([id, label]) => (
+          <button key={id} onClick={() => setTab(id)} style={{
+            padding: "14px 16px", border: "none", background: "none", cursor: "pointer",
+            ...F.body2,
+            color: tab === id ? C.lightBlue6 : C.grey6,
+            fontWeight: tab === id ? 700 : 500,
+            borderBottom: tab === id ? `2px solid ${C.lightBlue6}` : "2px solid transparent",
+          }}>{label}</button>
+        ))}
+      </div>
+
+      <div style={{ padding: 24 }}>
+        {displayed.length === 0 && (
+          <div style={{ textAlign: "center", padding: "60px 0", ...F.body2, color: C.grey5 }}>
+            오답 문항이 없습니다 🎉
+          </div>
+        )}
+        {displayed.map(q => {
+          const isCorrect = q.answer === q.correct;
+          return (
+            <div key={q.no} style={{ marginBottom: 16, borderRadius: 8, border: `1px solid ${C.grey2}`, overflow: "hidden" }}>
+              <div style={{ padding: "10px 16px", background: C.grey1, display: "flex", alignItems: "center", gap: 10 }}>
+                <span style={{ ...F.sub3, color: C.dark }}>Q{q.no}</span>
+                <Badge text={q.type} variant="fill" color="blue" />
+                <span style={{ ...F.body2, color: C.grey8, flex: 1 }}>{q.content}</span>
+                <span style={{ ...F.h2, color: isCorrect ? C.green6 : C.red6, fontWeight: 700 }}>
+                  {isCorrect ? "○" : "✗"}
+                </span>
+              </div>
+              {q.sentence && (
+                <div style={{ padding: "8px 16px", ...F.body2, color: C.grey8, fontStyle: "italic", borderBottom: `1px solid ${C.grey2}` }}>
+                  {q.sentence}
+                </div>
+              )}
+              <div style={{ padding: "12px 16px", display: "flex", gap: 8, flexWrap: "wrap" }}>
+                {q.options.map((opt, idx) => {
+                  const isRight = idx === q.correct;
+                  const isAnswered = idx === q.answer;
+                  let bg = C.white, border = C.grey3, color = C.grey8, fw = 500;
+                  if (isRight) { bg = C.green1; border = C.green6; color = C.green6; fw = 700; }
+                  else if (isAnswered && !isRight) { bg = C.red1; border = C.red6; color = C.red6; fw = 700; }
+                  return (
+                    <div key={idx} style={{
+                      padding: "6px 14px", borderRadius: 6,
+                      border: `1.5px solid ${border}`, background: bg,
+                      color, fontWeight: fw, ...F.caption,
+                    }}>
+                      {idx + 1}. {opt}{isRight ? " ✓" : ""}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </Modal>
+  );
+};
+
+// ─── 분석리포트 모달 ──────────────────────────────────────────────────────
+const ReportModal = ({ lesson, lessonType, onClose }) => {
+  const isEval = lessonType === "기초평가" || lessonType === "총괄평가";
+  const score = lessonType === "기초평가" ? 76 : lessonType === "총괄평가" ? 83 : lessonType === "복습" ? 72 : 85;
+  const parts = isEval
+    ? [{ l: "어휘력", v: 80 }, { l: "문장이해력", v: 70 }, { l: "독해력 I", v: 75 }, { l: "독해력 II", v: 65 }]
+    : [{ l: "Grammar Check", v: 88 }, { l: "실전 퀴즈", v: score }, { l: "복습 활동", v: lessonType === "복습" ? 72 : 90 }];
+
+  return (
+    <Modal title={`${lessonType} 리포트 · ${lesson}`} onClose={onClose} width={680}>
+      <div style={{ padding: 24 }}>
+        {/* 헤더 정보 */}
+        <div style={{
+          background: C.lightBlue1, borderRadius: 8, padding: 16,
+          display: "flex", gap: 32, marginBottom: 24,
+        }}>
+          {[["학생명", "김민준"], ["학년", "중2"], ["레벨", "Starter"], ["학습일", "2026-05-20"]].map(([k, v]) => (
+            <div key={k}>
+              <div style={{ ...F.overline, color: C.lightBlue6, marginBottom: 2 }}>{k}</div>
+              <div style={{ ...F.sub3, color: C.dark }}>{v}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* 점수 + 게이지 */}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 48, marginBottom: 24 }}>
+          <Gauge score={score} size={140} />
+          <div>
+            <div style={{ ...F.overline, color: C.grey6, marginBottom: 4 }}>종합 점수</div>
+            <div style={{ fontFamily: "'Pretendard', sans-serif", fontSize: 40, fontWeight: 700, color: score >= 80 ? C.green6 : C.orange6, lineHeight: 1 }}>{score}점</div>
+            <div style={{ marginTop: 8 }}><Badge text={score >= 80 ? "우수" : score >= 60 ? "보통" : "부족"} variant="fill" color={score >= 80 ? "green" : "orange"} /></div>
+            <div style={{ ...F.caption, color: C.grey5, marginTop: 8 }}>{lessonType} · {lesson}</div>
+          </div>
+        </div>
+
+        {/* 영역별 */}
+        <div style={{ marginBottom: 20 }}>
+          <div style={{ ...F.sub3, color: C.dark, marginBottom: 12 }}>영역별 정답률</div>
+          {parts.map((p, i) => (
+            <div key={i} style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 10 }}>
+              <span style={{ ...F.body2, color: C.grey8, width: 110 }}>{p.l}</span>
+              <div style={{ flex: 1, height: 8, background: C.grey2, borderRadius: 4, overflow: "hidden" }}>
+                <div style={{ width: `${p.v}%`, height: "100%", borderRadius: 4, background: p.v >= 80 ? C.green6 : p.v >= 60 ? C.orange6 : C.red6 }} />
+              </div>
+              <span style={{ ...F.sub3, color: C.dark, width: 36, textAlign: "right" }}>{p.v}%</span>
+            </div>
+          ))}
+        </div>
+
+        {/* 총평 */}
+        <div style={{ background: C.grey1, borderRadius: 8, padding: 16, border: `1px solid ${C.grey2}` }}>
+          <div style={{ ...F.sub3, color: C.dark, marginBottom: 8 }}>📝 총평</div>
+          <p style={{ ...F.body2, color: C.grey8, lineHeight: 1.6, margin: 0 }}>
+            {score >= 80
+              ? "전반적으로 우수한 학습 결과를 보였습니다. 특히 Grammar Check 영역에서 높은 성취도를 기록했습니다. 현재 페이스를 유지하며 다음 레슨으로 진행하세요."
+              : "일부 영역에서 보충 학습이 필요합니다. 정답률이 낮은 영역을 중심으로 복습 학습을 진행하는 것을 권장합니다."}
+          </p>
+        </div>
+      </div>
+    </Modal>
+  );
+};
+
+// ─── 코칭카드 모달 ────────────────────────────────────────────────────────
+const CoachingModal = ({ lesson, onClose }) => {
+  const dialogues = [
+    { role: "ai", text: "안녕하세요! Progress Test를 마쳤어요. 어떤 부분이 어려웠나요?" },
+    { role: "student", text: "현재완료 시제가 헷갈렸어요." },
+    { role: "ai", text: "'have/has + 과거분사' 형태예요. 예: I have studied English for 3 years. 유사 문제를 풀어볼까요?" },
+    { role: "student", text: "네, 해볼게요!" },
+    { role: "ai", text: "좋아요! 다음 문제: 'She _____ never visited Seoul.' 빈칸에 알맞은 것은?" },
+  ];
+  return (
+    <Modal title={`코칭카드 · ${lesson} · AI 튜터 대화 내역`} onClose={onClose} width={600}>
+      <div style={{ padding: 20 }}>
+        <div style={{
+          background: C.lightBlue1, borderRadius: 8, padding: "10px 14px",
+          marginBottom: 16, display: "flex", alignItems: "center", gap: 8,
+        }}>
+          <span style={{ ...F.body2, color: C.lightBlue6, fontWeight: 700 }}>🤖 AI 튜터 대화 내역 (Progress Test 후)</span>
+          <Badge text="스펙 확정 후 반영" variant="fill" color="orange" />
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 20 }}>
+          {dialogues.map((d, i) => (
+            <div key={i} style={{ display: "flex", justifyContent: d.role === "student" ? "flex-end" : "flex-start", alignItems: "flex-end", gap: 6 }}>
+              {d.role === "ai" && (
+                <div style={{ width: 28, height: 28, borderRadius: "50%", background: C.lightBlue6, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, ...F.overline, color: C.white, fontWeight: 700 }}>AI</div>
+              )}
+              <div style={{
+                maxWidth: "75%", padding: "10px 14px",
+                borderRadius: d.role === "student" ? "12px 12px 2px 12px" : "12px 12px 12px 2px",
+                background: d.role === "student" ? C.lightBlue6 : C.grey1,
+                color: d.role === "student" ? C.white : C.dark,
+                ...F.body2,
+              }}>{d.text}</div>
+            </div>
+          ))}
+        </div>
+        <div style={{ borderTop: `1px solid ${C.grey2}`, paddingTop: 16 }}>
+          <div style={{ ...F.sub3, color: C.dark, marginBottom: 10 }}>📝 유사문제 풀이 결과</div>
+          {[
+            { q: "I _____ never eaten sushi.", opts: ["have", "has", "had", "have been"], correct: 0, answer: 0 },
+            { q: "She _____ lived here for 5 years.", opts: ["have", "has", "had", "is"], correct: 1, answer: 2 },
+          ].map((q, i) => (
+            <div key={i} style={{ background: C.grey1, borderRadius: 8, padding: 12, marginBottom: 8 }}>
+              <div style={{ ...F.body2, color: C.dark, marginBottom: 8 }}>Q{i + 1}. {q.q}</div>
+              <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                {q.opts.map((opt, idx) => {
+                  let bg = C.white, border = C.grey3, color = C.grey8;
+                  if (idx === q.correct) { bg = C.green1; border = C.green6; color = C.green6; }
+                  else if (idx === q.answer && q.answer !== q.correct) { bg = C.red1; border = C.red6; color = C.red6; }
+                  return <div key={idx} style={{ padding: "4px 10px", borderRadius: 5, border: `1.5px solid ${border}`, background: bg, color, ...F.caption }}>{idx + 1}. {opt}</div>;
+                })}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </Modal>
+  );
+};
+
+// ─── 학생 상세 페이지 ─────────────────────────────────────────────────────
+const StudentDetail = ({ student, onBack }) => {
+  const [tab, setTab] = useState("history");
+  const [modal, setModal] = useState(null);
+
+  return (
+    <div style={{ flex: 1, overflowY: "auto" }}>
+      <Header />
+      <div style={{ padding: "24px 40px" }}>
+        {/* 브레드크럼 */}
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16 }}>
+          <button onClick={onBack} style={{ border: "none", background: "none", cursor: "pointer", ...F.body2, color: C.grey6 }}>← 학생관리</button>
+          <span style={{ color: C.grey4 }}>/</span>
+          <span style={{ ...F.body2, color: C.dark, fontWeight: 700 }}>{student.name}</span>
+        </div>
+
+        {/* 학생 정보 카드 */}
+        <div style={{ background: C.white, borderRadius: 8, padding: 20, marginBottom: 20, display: "flex", alignItems: "center", gap: 20, border: `1px solid ${C.grey2}` }}>
+          <div style={{ width: 48, height: 48, borderRadius: "50%", background: C.lightBlue1, display: "flex", alignItems: "center", justifyContent: "center", ...F.h2, color: C.lightBlue6 }}>{student.name[0]}</div>
+          <div style={{ flex: 1 }}>
+            <div style={{ ...F.h2, color: C.dark, marginBottom: 4 }}>{student.name}</div>
+            <div style={{ display: "flex", gap: 16, ...F.body2, color: C.grey8 }}>
+              <span>학년: {student.grade}</span>
+              <span>과목: <Badge text="GrammarFit" variant="fill" color="blue" /></span>
+              <span>레벨: Starter</span>
+              <span>현재 진도: {student.lesson}</span>
+            </div>
+          </div>
+          <div style={{ textAlign: "right" }}>
+            <div style={{ ...F.overline, color: C.grey5 }}>최근 점수</div>
+            <div style={{ ...F.h1, color: C.green6 }}>{student.score}점</div>
+          </div>
+        </div>
+
+        {/* 탭 */}
+        <div style={{ display: "flex", borderBottom: `1px solid ${C.grey2}`, marginBottom: 20 }}>
+          {[["history", "학습이력"], ["analysis", "학습분석"], ["progress", "전체 진도"]].map(([id, label]) => (
+            <button key={id} onClick={() => setTab(id)} style={{
+              padding: "12px 20px", border: "none", background: "none", cursor: "pointer",
+              ...F.h3, color: tab === id ? C.lightBlue6 : C.grey8,
+              fontWeight: tab === id ? 700 : 500,
+              borderBottom: tab === id ? `2px solid ${C.lightBlue6}` : "2px solid transparent",
+              marginBottom: -1,
+            }}>{label}</button>
+          ))}
+        </div>
+
+        {/* 학습이력 탭 */}
+        {tab === "history" && (
+          <div style={{ background: C.white, borderRadius: 8, border: `1px solid ${C.grey2}`, overflow: "hidden" }}>
+            <div style={{ padding: "12px 16px", borderBottom: `1px solid ${C.grey2}`, display: "flex", gap: 8 }}>
+              {["전체 유형", "기본", "복습", "기초평가", "총괄평가"].map((opt, i) => (
+                <button key={i} style={{ padding: "4px 12px", border: `1px solid ${i === 0 ? C.lightBlue6 : C.grey3}`, borderRadius: 999, ...F.caption, color: i === 0 ? C.lightBlue6 : C.grey6, background: i === 0 ? C.lightBlue1 : C.white, cursor: "pointer" }}>{opt}</button>
+              ))}
+            </div>
+            <table style={{ width: "100%", borderCollapse: "collapse" }}>
+              <thead>
+                <tr style={{ background: C.grey1 }}>
+                  {["레슨", "유형", "학습일", "점수", "상태", ""].map((h, i) => (
+                    <th key={i} style={{ padding: "12px 16px", textAlign: "left", ...F.caption, color: C.grey6, borderBottom: `1px solid ${C.grey2}`, fontWeight: 500 }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {HISTORY.map(l => (
+                  <tr key={l.id} style={{ borderBottom: `1px solid ${C.grey1}` }}>
+                    <td style={{ padding: "14px 16px", ...F.sub3, color: C.dark }}>{l.lesson}</td>
+                    <td style={{ padding: "14px 16px" }}>
+                      <Badge text={l.type} variant="fill"
+                        color={l.type === "기초평가" || l.type === "총괄평가" ? "orange" : l.type === "복습" ? "green" : "blue"} />
+                    </td>
+                    <td style={{ padding: "14px 16px", ...F.caption, color: C.grey5 }}>{l.date}</td>
+                    <td style={{ padding: "14px 16px", ...F.sub3, color: l.score >= 80 ? C.green6 : l.score >= 60 ? C.orange6 : C.red6 }}>{l.score}점</td>
+                    <td style={{ padding: "14px 16px" }}><Badge text="완료" variant="fill" color="green" /></td>
+                    <td style={{ padding: "14px 16px" }}>
+                      <div style={{ display: "flex", gap: 6 }}>
+                        <button onClick={() => setModal({ type: "play", lesson: l.lesson })} style={{ padding: "4px 10px", border: `1px solid ${C.grey3}`, borderRadius: 4, ...F.caption, color: C.grey6, background: C.white, cursor: "pointer" }}>풀이</button>
+                        <button onClick={() => setModal({ type: "report", lesson: l.lesson, lessonType: l.type })} style={{ padding: "4px 10px", border: `1px solid ${C.lightBlue6}`, borderRadius: 4, ...F.caption, color: C.lightBlue6, background: C.lightBlue1, cursor: "pointer" }}>학습결과</button>
+                        {l.coaching && (
+                          <button onClick={() => setModal({ type: "coaching", lesson: l.lesson })} style={{ padding: "4px 10px", border: `1px solid ${C.green6}`, borderRadius: 4, ...F.caption, color: C.green6, background: C.green1, cursor: "pointer" }}>코칭카드</button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {/* 학습분석 탭 */}
+        {tab === "analysis" && (
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+            <div style={{ background: C.white, borderRadius: 8, border: `1px solid ${C.grey2}`, padding: 20 }}>
+              <div style={{ ...F.sub3, color: C.dark, marginBottom: 16 }}>6개월 성취도 추이</div>
+              <div style={{ display: "flex", alignItems: "flex-end", gap: 6, height: 100 }}>
+                {[65, 70, 72, 78, 80, 85].map((v, i) => (
+                  <div key={i} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
+                    <span style={{ ...F.overline, color: C.grey6 }}>{v}</span>
+                    <div style={{ width: "100%", height: `${v * 0.8}px`, borderRadius: "4px 4px 0 0", background: i === 5 ? C.lightBlue6 : C.lightBlue1 }} />
+                    <span style={{ ...F.overline, color: C.grey5 }}>{["12","1","2","3","4","5"][i]}월</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div style={{ background: C.white, borderRadius: 8, border: `1px solid ${C.grey2}`, padding: 20 }}>
+              <div style={{ ...F.sub3, color: C.dark, marginBottom: 12 }}>학습 통계</div>
+              {[["평균 성취도","80점"],["총 학습 레슨","24개"],["총 풀이 문항","240문항"],["총 학습일","18일"],["누적 학습시간","12시간 30분"]].map(([k,v]) => (
+                <div key={k} style={{ display: "flex", justifyContent: "space-between", padding: "10px 0", borderBottom: `1px solid ${C.grey1}` }}>
+                  <span style={{ ...F.body2, color: C.grey6 }}>{k}</span>
+                  <span style={{ ...F.sub3, color: C.dark }}>{v}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* 전체 진도 탭 */}
+        {tab === "progress" && (
+          <div style={{ background: C.white, borderRadius: 8, border: `1px solid ${C.grey2}`, padding: 24 }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
+              <div>
+                <div style={{ ...F.h2, color: C.dark }}>Starter 레벨</div>
+                <div style={{ ...F.caption, color: C.grey5 }}>Lesson 1~48 / 기초평가(1회) / 총괄평가(2회)</div>
+              </div>
+              <Badge text="진행중" variant="fill" color="blue" />
+            </div>
+            <div style={{ marginBottom: 16 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+                <span style={{ ...F.body2, color: C.grey6 }}>전체 진도율</span>
+                <span style={{ ...F.sub3, color: C.lightBlue6 }}>50%</span>
+              </div>
+              <div style={{ height: 8, background: C.grey2, borderRadius: 4, overflow: "hidden" }}>
+                <div style={{ width: "50%", height: "100%", background: C.lightBlue6, borderRadius: 4 }} />
+              </div>
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(10, 1fr)", gap: 4 }}>
+              {Array.from({ length: 51 }, (_, i) => {
+                const label = i < 48 ? `L${i+1}` : i === 48 ? "기초" : i === 49 ? "총1" : "총2";
+                const done = i < 24;
+                return (
+                  <div key={i} style={{ padding: "4px 2px", borderRadius: 4, textAlign: "center", background: done ? C.lightBlue1 : C.grey1, border: `1px solid ${done ? C.lightBlue6 : C.grey2}`, ...F.overline, color: done ? C.lightBlue6 : C.grey4 }}>
+                    {label}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {modal?.type === "play" && <PlayModal lesson={modal.lesson} onClose={() => setModal(null)} />}
+      {modal?.type === "report" && <ReportModal lesson={modal.lesson} lessonType={modal.lessonType} onClose={() => setModal(null)} />}
+      {modal?.type === "coaching" && <CoachingModal lesson={modal.lesson} onClose={() => setModal(null)} />}
+    </div>
+  );
+};
+
+// ─── 홈 페이지 ────────────────────────────────────────────────────────────
+const HomePage = () => (
+  <div style={{ flex: 1, overflowY: "auto" }}>
+    <Header />
+    <div style={{ padding: "24px 40px" }}>
+      <div style={{ padding: "16px 40px 24px", ...F.h1, color: C.dark }}>2026.05.21 (목)</div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24 }}>
+        {/* 왼쪽 메인 */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+          {/* 체험/신입 */}
+          <div>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+              <span style={{ ...F.h2, color: C.dark }}>체험/신입</span>
+              <span style={{ ...F.h2, color: C.lightBlue6 }}>3</span>
+            </div>
+            <div style={{ background: C.white, borderRadius: 8, border: `1px solid ${C.grey2}`, overflow: "hidden" }}>
+              <div style={{ display: "flex", ...F.caption, color: C.grey6, padding: "12px 16px", borderBottom: `1px solid ${C.grey2}`, background: C.grey1, justifyContent: "space-between" }}>
+                <span style={{ width: 180 }}>이름/학년</span><span style={{ width: 140, textAlign: "center" }}>과목</span><span style={{ width: 130, textAlign: "center" }}>진도</span><span style={{ width: 130, textAlign: "center" }}>결과</span><span style={{ width: 130, textAlign: "center" }}>학습일</span>
+              </div>
+              {[["신입", "김민준(중2)", "GrammarFit", "Starter Lesson 1", "100%", "26.05.20"],["체험", "이서연(중1)", "GrammarFit", "진단평가 실시 전", "-", "-"]].map(([badge, name, sub, prog, res, date], i) => (
+                <div key={i} style={{ display: "flex", alignItems: "center", padding: "12px 16px", borderBottom: `1px solid ${C.grey1}`, justifyContent: "space-between" }}>
+                  <div style={{ width: 180, display: "flex", alignItems: "center", gap: 8 }}>
+                    <Badge text={badge} variant="fill" color={badge === "신입" ? "orange" : "green"} />
+                    <span style={{ ...F.body2, color: C.dark }}>{name}</span>
+                  </div>
+                  <span style={{ ...F.body2, color: C.dark, width: 140, textAlign: "center" }}>{sub}</span>
+                  <span style={{ ...F.body2, color: C.dark, width: 130, textAlign: "center" }}>{prog}</span>
+                  <span style={{ ...F.body2, color: C.dark, width: 130, textAlign: "center" }}>{res}</span>
+                  <span style={{ ...F.body2, color: C.dark, width: 130, textAlign: "center" }}>{date}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* 성취율/시간 알림 */}
+          <div>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+              <span style={{ ...F.h2, color: C.dark }}>성취율/시간</span>
+              <span style={{ ...F.h2, color: C.lightBlue6 }}>4</span>
+            </div>
+            <div style={{ background: C.white, borderRadius: 8, border: `1px solid ${C.grey2}`, overflow: "hidden" }}>
+              {[["성취", C.red6, "최유나(중1)", "GrammarFit", "Starter Lesson 12", "40%", "26.05.19"],["시간", C.orange6, "정도윤(중2)", "GrammarFit", "Starter Lesson 36", "60%", "26.05.18"]].map(([badge, bc, name, sub, prog, res, date], i) => (
+                <div key={i} style={{ display: "flex", alignItems: "center", padding: "12px 16px", borderBottom: `1px solid ${C.grey1}`, justifyContent: "space-between", background: i === 0 ? C.lightBlue1 : C.white }}>
+                  <span style={{ border: `1px solid ${bc}`, borderRadius: 999, padding: "0 8px", ...F.overline, color: bc }}>{badge}</span>
+                  <span style={{ ...F.body2, color: C.dark, width: 130 }}>{name}</span>
+                  <span style={{ ...F.body2, color: C.dark, width: 140, textAlign: "center" }}>{sub}</span>
+                  <span style={{ ...F.body2, color: C.dark, width: 130, textAlign: "center" }}>{prog}</span>
+                  <span style={{ ...F.body2, color: C.dark, width: 130, textAlign: "center" }}>{res}</span>
+                  <span style={{ ...F.body2, color: C.dark, width: 130, textAlign: "center" }}>{date}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* 칭찬/관심 필요 */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24 }}>
+            {[["칭찬 필요", C.green6, [["김민준(중2)", "GrammarFit"], ["박지호(중3)", "GrammarFit"]]], ["관심 필요", C.red6, [["최유나(중1)", "GrammarFit"]]]].map(([title, col, items]) => (
+              <div key={title}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+                  <span style={{ ...F.h2, color: C.dark }}>{title}</span>
+                  <span style={{ ...F.h2, color: C.lightBlue6 }}>{items.length}</span>
+                </div>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 12 }}>
+                  {items.map(([name, sub], i) => (
+                    <div key={i} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <div style={{ width: 58, height: 58, borderRadius: "50%", background: col === C.green6 ? C.green1 : C.red1, border: `2px solid ${col}`, display: "flex", alignItems: "center", justifyContent: "center", ...F.overline, color: col, position: "relative" }}>
+                        <span style={{ position: "absolute", bottom: 2, left: "50%", transform: "translateX(-50%)", whiteSpace: "nowrap" }}>{col === C.green6 ? "100점" : "미출석"}</span>
+                        <span style={{ fontSize: 16 }}>{col === C.green6 ? "🚀" : "📍"}</span>
+                      </div>
+                      <div>
+                        <div style={{ ...F.sub3, color: C.dark }}>{name}</div>
+                        <div style={{ ...F.caption, color: C.grey6 }}>{sub}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* 오른쪽 패널 */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          <div style={{ background: C.white, borderRadius: 8, border: `1px solid ${C.grey2}`, padding: 20 }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <div style={{ width: 40, height: 40, borderRadius: "50%", background: C.lightBlue1, display: "flex", alignItems: "center", justifyContent: "center" }}>👤</div>
+                <span style={{ ...F.h3, color: C.dark }}>오늘 학습</span>
+              </div>
+              <span style={{ color: C.lightBlue6, cursor: "pointer", fontSize: 20 }}>→</span>
+            </div>
+            <div style={{ display: "flex", justifyContent: "center", gap: 48, padding: "0 24px" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                <span style={{ ...F.h3, color: C.deepPurple5 }}>4</span>
+                <span style={{ ...F.caption, color: C.grey8 }}>/</span>
+                <span style={{ ...F.body2, color: C.grey8 }}>5명</span>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                <span style={{ ...F.h3, color: C.deepPurple5 }}>4</span>
+                <span style={{ ...F.caption, color: C.grey8 }}>/</span>
+                <span style={{ ...F.body2, color: C.grey8 }}>5 과목</span>
+              </div>
+            </div>
+          </div>
+
+          <div style={{ background: C.white, borderRadius: 8, border: `1px solid ${C.grey2}`, padding: 20 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+              <div style={{ width: 40, height: 40, borderRadius: "50%", background: C.lightBlue1, display: "flex", alignItems: "center", justifyContent: "center" }}>✓</div>
+              <span style={{ ...F.h3, color: C.dark }}>학습종료</span>
+            </div>
+            {STUDENTS.slice(0, 3).map((s, i) => (
+              <div key={i} style={{ padding: "12px 16px", background: C.lightBlue1, borderRadius: i === 0 ? "8px 8px 0 0" : i === 2 ? "0 0 8px 8px" : 0, borderTop: i > 0 ? `1px solid ${C.white}` : "none" }}>
+                <div style={{ ...F.sub3, color: C.dark }}>{s.name}</div>
+                <div style={{ ...F.body2, color: C.grey8 }}>GrammarFit</div>
+              </div>
+            ))}
+          </div>
+
+          <div style={{ background: C.white, borderRadius: 8, border: `1px solid ${C.grey2}`, padding: 20 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+              <div style={{ width: 40, height: 40, borderRadius: "50%", background: C.lightBlue1, display: "flex", alignItems: "center", justifyContent: "center" }}>📊</div>
+              <span style={{ ...F.h3, color: C.dark }}>학습 중</span>
+            </div>
+            {[["14:32", "김민준", "GrammarFit"], ["15:10", "이서연", "GrammarFit"]].map(([time, name, sub], i) => (
+              <div key={i} style={{ display: "flex", gap: 16, padding: "12px 16px", borderBottom: `1px solid ${C.grey2}` }}>
+                <span style={{ ...F.body2, color: C.grey8, whiteSpace: "nowrap" }}>{time}</span>
+                <div>
+                  <div style={{ ...F.sub3, color: C.dark }}>{name}</div>
+                  <div style={{ ...F.body2, color: C.grey8 }}>{sub}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+);
+
+// ─── 학생관리 페이지 ──────────────────────────────────────────────────────
+const StudentsPage = ({ onSelect }) => (
+  <div style={{ flex: 1, overflowY: "auto" }}>
+    <Header />
+    <div style={{ padding: "24px 40px" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
+        <span style={{ ...F.h1, color: C.dark }}>학생관리</span>
+        <div style={{ display: "flex", gap: 8 }}>
+          <select style={{ padding: "0 16px", height: 48, border: `1px solid ${C.grey3}`, borderRadius: 999, ...F.body2, color: C.dark }}>
+            <option>전체 학년</option><option>중1</option><option>중2</option><option>중3</option>
+          </select>
+          <input placeholder="학생명 검색" style={{ padding: "0 16px", height: 48, border: `1px solid ${C.grey3}`, borderRadius: 999, ...F.body2, width: 200 }} />
+        </div>
+      </div>
+      <div style={{ background: C.white, borderRadius: 8, border: `1px solid ${C.grey2}`, overflow: "hidden" }}>
+        <table style={{ width: "100%", borderCollapse: "collapse" }}>
+          <thead>
+            <tr style={{ background: C.grey1 }}>
+              {["이름/학년", "과목", "진도", "최근 점수", "학습일", ""].map((h, i) => (
+                <th key={i} style={{ padding: "12px 16px", textAlign: "left", ...F.caption, color: C.grey6, borderBottom: `1px solid ${C.grey2}`, fontWeight: 500 }}>{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {STUDENTS.map(s => (
+              <tr key={s.id} style={{ borderBottom: `1px solid ${C.grey1}`, cursor: "pointer" }}
+                onMouseEnter={e => e.currentTarget.style.background = C.lightBlue1}
+                onMouseLeave={e => e.currentTarget.style.background = C.white}
+                onClick={() => onSelect(s)}>
+                <td style={{ padding: "14px 16px" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <div style={{ width: 36, height: 36, borderRadius: "50%", background: C.lightBlue1, display: "flex", alignItems: "center", justifyContent: "center", ...F.sub3, color: C.lightBlue6 }}>{s.name[0]}</div>
+                    <div>
+                      <div style={{ ...F.sub3, color: C.dark }}>{s.name}</div>
+                      <div style={{ ...F.caption, color: C.grey5 }}>{s.grade}</div>
+                    </div>
+                  </div>
+                </td>
+                <td style={{ padding: "14px 16px" }}><Badge text="GrammarFit" variant="fill" color="blue" /></td>
+                <td style={{ padding: "14px 16px", ...F.body2, color: C.grey8 }}>Starter · {s.lesson}</td>
+                <td style={{ padding: "14px 16px", ...F.sub3, color: s.score >= 80 ? C.green6 : s.score >= 60 ? C.orange6 : C.red6 }}>{s.score}점</td>
+                <td style={{ padding: "14px 16px", ...F.caption, color: C.grey5 }}>{s.date}</td>
+                <td style={{ padding: "14px 16px" }}>
+                  <button style={{ padding: "6px 16px", border: `1px solid ${C.lightBlue6}`, borderRadius: 4, ...F.caption, color: C.lightBlue6, background: C.lightBlue1, cursor: "pointer" }}>상세보기</button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+);
+
+// ─── 진단평가 페이지 ──────────────────────────────────────────────────────
+const DiagnosisPage = () => {
+  const [showReport, setShowReport] = useState(false);
+  return (
+    <div style={{ flex: 1, overflowY: "auto" }}>
+      <Header />
+      <div style={{ padding: "24px 40px" }}>
+        <span style={{ ...F.h1, color: C.dark, display: "block", marginBottom: 20 }}>진단평가</span>
+        <div style={{ background: C.white, borderRadius: 8, border: `1px solid ${C.grey2}`, overflow: "hidden" }}>
+          <div style={{ padding: "12px 16px", borderBottom: `1px solid ${C.grey2}`, display: "flex", gap: 8 }}>
+            {["전체 기간", "전체 학년", "전체 유형"].map((t, i) => (
+              <select key={i} style={{ padding: "4px 12px", border: `1px solid ${C.grey3}`, borderRadius: 999, ...F.caption, color: C.dark }}>
+                <option>{t}</option>
+              </select>
+            ))}
+          </div>
+          <table style={{ width: "100%", borderCollapse: "collapse" }}>
+            <thead>
+              <tr style={{ background: C.grey1 }}>
+                {["이름", "학년", "평가 유형", "응시일", "점수", "결과"].map((h, i) => (
+                  <th key={i} style={{ padding: "12px 16px", textAlign: "left", ...F.caption, color: C.grey6, borderBottom: `1px solid ${C.grey2}`, fontWeight: 500 }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {[["김민준", "중2", "기초평가 1", "2026-05-14", 76], ["이서연", "중1", "기초평가 1", "2026-05-13", 68], ["박지호", "중3", "총괄평가 1", "2026-05-10", 83]].map(([name, grade, type, date, score], i) => (
+                <tr key={i} style={{ borderBottom: `1px solid ${C.grey1}` }}>
+                  <td style={{ padding: "14px 16px", ...F.sub3, color: C.dark }}>{name}</td>
+                  <td style={{ padding: "14px 16px", ...F.body2, color: C.grey8 }}>{grade}</td>
+                  <td style={{ padding: "14px 16px" }}><Badge text={type} variant="fill" color="orange" /></td>
+                  <td style={{ padding: "14px 16px", ...F.caption, color: C.grey5 }}>{date}</td>
+                  <td style={{ padding: "14px 16px", ...F.sub3, color: score >= 80 ? C.green6 : C.orange6 }}>{score}점</td>
+                  <td style={{ padding: "14px 16px" }}>
+                    <button onClick={() => setShowReport(true)} style={{ padding: "6px 16px", border: `1px solid ${C.lightBlue6}`, borderRadius: 4, ...F.caption, color: C.lightBlue6, background: C.lightBlue1, cursor: "pointer" }}>리포트 보기</button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      {showReport && <ReportModal lesson="기초평가 1" lessonType="기초평가" onClose={() => setShowReport(false)} />}
+    </div>
+  );
+};
+
+// ─── 알림톡 페이지 ────────────────────────────────────────────────────────
+const AlimtalkPage = () => {
+  const [sel, setSel] = useState([]);
+  return (
+    <div style={{ flex: 1, overflowY: "auto" }}>
+      <Header />
+      <div style={{ padding: "24px 40px" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+          <span style={{ ...F.h1, color: C.dark }}>알림톡</span>
+          <button style={{ padding: "0 24px", height: 48, background: C.lightBlue6, color: C.white, border: "none", borderRadius: 999, ...F.sub3, cursor: "pointer" }}>알림톡 발송 ({sel.length})</button>
+        </div>
+        <div style={{ background: C.orange1, border: `1px solid ${C.orange6}`, borderRadius: 8, padding: "10px 16px", marginBottom: 16, ...F.body2, color: "#B45309" }}>
+          ⚠️ GrammarFit 알림톡 발송 정책은 미정입니다. 확정 후 업데이트 예정입니다.
+        </div>
+        <div style={{ background: C.white, borderRadius: 8, border: `1px solid ${C.grey2}`, overflow: "hidden" }}>
+          <table style={{ width: "100%", borderCollapse: "collapse" }}>
+            <thead>
+              <tr style={{ background: C.grey1 }}>
+                <th style={{ padding: "12px 16px", width: 40 }}>
+                  <input type="checkbox" onChange={e => setSel(e.target.checked ? STUDENTS.map(s => s.id) : [])} />
+                </th>
+                {["학생명", "과목", "레슨", "점수", "학습일", "상태", ""].map((h, i) => (
+                  <th key={i} style={{ padding: "12px 16px", textAlign: "left", ...F.caption, color: C.grey6, borderBottom: `1px solid ${C.grey2}`, fontWeight: 500 }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {STUDENTS.map(s => (
+                <tr key={s.id} style={{ borderBottom: `1px solid ${C.grey1}` }}>
+                  <td style={{ padding: "12px 16px" }}><input type="checkbox" checked={sel.includes(s.id)} onChange={() => setSel(prev => prev.includes(s.id) ? prev.filter(x => x !== s.id) : [...prev, s.id])} /></td>
+                  <td style={{ padding: "12px 16px", ...F.sub3, color: C.dark }}>{s.name}</td>
+                  <td style={{ padding: "12px 16px" }}><Badge text="GrammarFit" variant="fill" color="blue" /></td>
+                  <td style={{ padding: "12px 16px", ...F.body2, color: C.grey8 }}>{s.lesson}</td>
+                  <td style={{ padding: "12px 16px", ...F.sub3, color: C.green6 }}>{s.score}점</td>
+                  <td style={{ padding: "12px 16px", ...F.caption, color: C.grey5 }}>{s.date}</td>
+                  <td style={{ padding: "12px 16px" }}><Badge text="미발송" variant="fill" color="gray" /></td>
+                  <td style={{ padding: "12px 16px" }}><button style={{ padding: "4px 10px", border: `1px solid ${C.grey3}`, borderRadius: 4, ...F.caption, color: C.grey6, background: C.white, cursor: "pointer" }}>미리보기</button></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ─── 메인 앱 ─────────────────────────────────────────────────────────────
+function App() {
+  const [page, setPage] = useState("home");
+  const [student, setStudent] = useState(null);
+
+  const handleNav = (p) => { setPage(p); setStudent(null); };
+
+  const renderMain = () => {
+    if (student) return <StudentDetail student={student} onBack={() => setStudent(null)} />;
+    switch (page) {
+      case "home": return <HomePage />;
+      case "students": return <StudentsPage onSelect={setStudent} />;
+      case "diagnosis": return <DiagnosisPage />;
+      case "alimtalk": return <AlimtalkPage />;
+      default: return (
+        <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", ...F.body2, color: C.grey5 }}>
+          🚧 준비 중인 화면입니다.
+        </div>
+      );
+    }
+  };
+
+  return (
+    <div style={{ display: "flex", height: "100vh", fontFamily: "'Pretendard', 'Apple SD Gothic Neo', sans-serif", background: C.grey1 }}>
+      <SideMenu active={page} setActive={handleNav} />
+      {renderMain()}
+    </div>
+  );
+}
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+  </script>
+</body>
+</html>
