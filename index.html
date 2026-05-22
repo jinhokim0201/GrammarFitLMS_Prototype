@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>통합LMS · GrammarFit 프로토타입 v0.3</title>
+  <title>통합LMS · GrammarFit 프로토타입 v0.4</title>
   <link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" rel="stylesheet" />
   <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
@@ -1011,11 +1011,25 @@ const HomePage = () => (
   </div>
 );
 
-// ─── 학생관리 페이지 (오늘학습/모든학생 탭 구분) ──────────────────────────
+// ─── 학생관리 페이지 (피그마 카드 레이아웃 기준) ──────────────────────────
 const StudentsPage = ({ onSelect }) => {
   const [subTab, setSubTab] = useState("today");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [gradeFilter, setGradeFilter] = useState("all");
+  const [search, setSearch] = useState("");
+
   const todayStudents = STUDENTS.filter(s=>s.date==="2026-05-20");
-  const displayed = subTab==="today" ? todayStudents : STUDENTS;
+  const baseList = subTab==="today" ? todayStudents : STUDENTS;
+  const displayed = baseList
+    .filter(s=>gradeFilter==="all" || s.grade===gradeFilter)
+    .filter(s=>!search || s.name.includes(search));
+
+  // 오늘학습 탭: 상태 필터 (전체/학습중/학습완료)
+  const todayFiltered = statusFilter==="all" ? displayed
+    : statusFilter==="progress" ? displayed.filter((_,i)=>i%2===0)  // 더미: 짝수 인덱스=학습중
+    : displayed.filter((_,i)=>i%2!==0);                              // 더미: 홀수=완료
+
+  const finalList = subTab==="today" ? todayFiltered : displayed;
 
   return (
     <div style={{ flex:1, overflowY:"auto" }}>
@@ -1024,9 +1038,9 @@ const StudentsPage = ({ onSelect }) => {
         <span style={{ ...F.h1, color:C.dark, display:"block", marginBottom:20 }}>학생관리</span>
 
         {/* 오늘학습/모든학생 탭 */}
-        <div style={{ display:"flex", borderBottom:`1px solid ${C.grey2}`, marginBottom:20 }}>
+        <div style={{ display:"flex", borderBottom:`1px solid ${C.grey2}`, marginBottom:24 }}>
           {[["today","오늘 학습"],["all","모든 학생"]].map(([id,label])=>(
-            <button key={id} onClick={()=>setSubTab(id)} style={{
+            <button key={id} onClick={()=>{ setSubTab(id); setStatusFilter("all"); }} style={{
               padding:"12px 20px", border:"none", background:"none", cursor:"pointer",
               ...F.h3, color:subTab===id?C.lightBlue6:C.grey8, fontWeight:subTab===id?700:500,
               borderBottom:subTab===id?`2px solid ${C.lightBlue6}`:"2px solid transparent", marginBottom:-1,
@@ -1034,63 +1048,122 @@ const StudentsPage = ({ onSelect }) => {
           ))}
         </div>
 
-        {/* 필터 */}
-        <div style={{ display:"flex", justifyContent:"flex-end", gap:8, marginBottom:16 }}>
-          {subTab==="all" && (
-            <>
-              <select style={{ padding:"0 16px", height:40, border:`1px solid ${C.grey3}`, borderRadius:999, ...F.body2, color:C.dark }}>
-                <option>전체 학년</option><option>중1</option><option>중2</option><option>중3</option>
-              </select>
-              <select style={{ padding:"0 16px", height:40, border:`1px solid ${C.grey3}`, borderRadius:999, ...F.body2, color:C.dark }}>
-                <option>전체 요일</option><option>월</option><option>화</option><option>수</option><option>목</option><option>금</option>
-              </select>
-            </>
-          )}
-          {subTab==="today" && (
-            <>
-              <button style={{ padding:"0 14px", height:40, border:`1px solid ${C.grey3}`, borderRadius:999, ...F.caption, color:C.grey6, background:C.white, cursor:"pointer" }}>전체</button>
-              <button style={{ padding:"0 14px", height:40, border:`1px solid ${C.lightBlue6}`, borderRadius:999, ...F.caption, color:C.lightBlue6, background:C.lightBlue1, cursor:"pointer" }}>학습중</button>
-              <button style={{ padding:"0 14px", height:40, border:`1px solid ${C.grey3}`, borderRadius:999, ...F.caption, color:C.grey6, background:C.white, cursor:"pointer" }}>학습완료</button>
-            </>
-          )}
-          <input placeholder="학생명 검색" style={{ padding:"0 16px", height:40, border:`1px solid ${C.grey3}`, borderRadius:999, ...F.body2, width:180 }}/>
+        {/* 필터 바 (피그마 기준: 세그먼트 그룹 + 검색) */}
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
+          <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+            {subTab==="today" && (
+              <div style={{ display:"flex", border:`1px solid ${C.lightBlue6}`, borderRadius:10, overflow:"hidden" }}>
+                {[["all","전체"],["progress","학습 중"],["done","학습 완료"]].map(([id,label],i)=>(
+                  <button key={id} onClick={()=>setStatusFilter(id)} style={{
+                    padding:"0 20px", height:44,
+                    border:"none",
+                    borderLeft: i>0 ? `1px solid ${C.lightBlue6}` : "none",
+                    background: statusFilter===id ? C.lightBlue6 : C.white,
+                    color: statusFilter===id ? C.white : C.dark,
+                    cursor:"pointer", ...F.body2, fontWeight:500,
+                  }}>{label}</button>
+                ))}
+              </div>
+            )}
+            {subTab==="all" && (
+              <>
+                <select onChange={e=>setGradeFilter(e.target.value)} style={{ padding:"0 16px", height:44, border:`1px solid ${C.grey3}`, borderRadius:10, ...F.body2, color:C.dark, cursor:"pointer" }}>
+                  <option value="all">전체 학년</option><option value="중1">중1</option><option value="중2">중2</option><option value="중3">중3</option>
+                </select>
+                <select style={{ padding:"0 16px", height:44, border:`1px solid ${C.grey3}`, borderRadius:10, ...F.body2, color:C.dark, cursor:"pointer" }}>
+                  <option>전체 요일</option><option>월</option><option>화</option><option>수</option><option>목</option><option>금</option>
+                </select>
+              </>
+            )}
+          </div>
+          <input
+            placeholder="학생 이름 검색"
+            value={search}
+            onChange={e=>setSearch(e.target.value)}
+            style={{ padding:"0 16px", height:48, border:`1px solid ${C.grey3}`, borderRadius:10, ...F.body2, width:250, outline:"none" }}
+          />
         </div>
 
-        <div style={{ background:C.white, borderRadius:8, border:`1px solid ${C.grey2}`, overflow:"hidden" }}>
-          <table style={{ width:"100%", borderCollapse:"collapse" }}>
-            <thead>
-              <tr style={{ background:C.grey1 }}>
-                {["이름/학년","과목","진도","최근 점수","학습일",""].map((h,i)=>(
-                  <th key={i} style={{ padding:"12px 16px", textAlign:"left", ...F.caption, color:C.grey6, borderBottom:`1px solid ${C.grey2}`, fontWeight:500 }}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {displayed.map(s=>(
-                <tr key={s.id} style={{ borderBottom:`1px solid ${C.grey1}`, cursor:"pointer" }}
-                  onMouseEnter={e=>e.currentTarget.style.background=C.lightBlue1}
-                  onMouseLeave={e=>e.currentTarget.style.background=C.white}
-                  onClick={()=>onSelect(s)}>
-                  <td style={{ padding:"14px 16px" }}>
-                    <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-                      <div style={{ width:36,height:36,borderRadius:"50%",background:C.lightBlue1,display:"flex",alignItems:"center",justifyContent:"center",...F.sub3,color:C.lightBlue6 }}>{s.name[0]}</div>
-                      <div>
-                        <div style={{ ...F.sub3, color:C.dark }}>{s.name}</div>
-                        <div style={{ ...F.caption, color:C.grey5 }}>{s.grade}</div>
+        {/* 학생 수 표시 */}
+        <div style={{ marginBottom:16 }}>
+          <span style={{ fontFamily:"'Pretendard',sans-serif", fontWeight:700, fontSize:20, color:C.grey8, lineHeight:1.5 }}>{finalList.length}명</span>
+        </div>
+
+        {/* 학생 카드 목록 (피그마 카드 레이아웃) */}
+        <div style={{ display:"flex", flexDirection:"column", gap:16 }}>
+          {finalList.length===0 && (
+            <div style={{ textAlign:"center", padding:"60px 0", ...F.body2, color:C.grey5 }}>해당 학생이 없습니다.</div>
+          )}
+          {finalList.map((s,idx)=>{
+            const isDone = idx%2!==0; // 더미: 홀수=완료, 짝수=학습중
+            const wrongCount = isDone ? 0 : 2;
+            return (
+              <div key={s.id} style={{ background:C.white, borderRadius:10, border:`1px solid ${C.grey2}`, overflow:"hidden" }}>
+                {/* 카드 헤더: 이름 + 학년 + 출석입력 */}
+                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"0 24px", height:60, borderBottom:`1px solid ${C.grey2}` }}>
+                  <div style={{ display:"flex", alignItems:"center", gap:16 }}>
+                    <span style={{ fontFamily:"'Pretendard',sans-serif", fontWeight:700, fontSize:20, color:C.dark, lineHeight:"30px" }}>{s.name}</span>
+                    <div style={{ display:"flex", alignItems:"center", gap:12, ...F.body2, color:C.grey8 }}>
+                      <span>{s.grade}</span>
+                      <div style={{ width:1, height:16, background:C.grey2 }}/>
+                      <span style={{ color:C.grey5 }}>010-****-{1000+s.id}0</span>
+                    </div>
+                  </div>
+                  <button style={{ padding:"7px 16px", border:`1px solid ${C.red6}`, borderRadius:10, ...F.caption, color:C.red6, background:C.white, cursor:"pointer" }}>출석 입력</button>
+                </div>
+
+                {/* 카드 본문: 과목 + 진도 + 액션버튼 */}
+                <div style={{ padding:"20px 24px" }}>
+                  <div style={{ display:"flex", alignItems:"center", gap:40 }}>
+                    {/* 과목 */}
+                    <div style={{ display:"flex", alignItems:"center", gap:8, width:200, flexShrink:0 }}>
+                      <span style={{ fontFamily:"'Pretendard',sans-serif", fontWeight:500, fontSize:18, color:C.grey8, lineHeight:"27px" }}>GrammarFit</span>
+                      <span style={{ padding:"2px 8px", background:C.green1, border:`1px solid ${C.green6}`, borderRadius:999, fontFamily:"'Pretendard',sans-serif", fontWeight:500, fontSize:13, color:C.green6, lineHeight:"19.5px" }}>GF</span>
+                    </div>
+
+                    {/* 진도 */}
+                    <div style={{ display:"flex", flexDirection:"column", gap:4, width:280, flexShrink:0 }}>
+                      <span style={{ ...F.overline, color:C.grey6 }}>진도</span>
+                      <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                        <span style={{ ...F.body2, color:C.grey8 }}>Starter · {s.lesson}</span>
+                        {isDone
+                          ? <div style={{ display:"flex", alignItems:"center", gap:4 }}>
+                              <span style={{ ...F.caption, color:C.grey5 }}>{s.date}</span>
+                              <span style={{ color:C.green6, fontSize:14 }}>✓</span>
+                            </div>
+                          : <span style={{ padding:"1px 10px", background:C.lightBlue1, border:`1px solid ${C.lightBlue6}`, borderRadius:999, ...F.overline, color:C.lightBlue6 }}>학습 중</span>
+                        }
                       </div>
                     </div>
-                  </td>
-                  <td style={{ padding:"14px 16px" }}><Badge text="GrammarFit" variant="fill" color="blue"/></td>
-                  <td style={{ padding:"14px 16px", ...F.body2, color:C.grey8 }}>Starter · {s.lesson}</td>
-                  <td style={{ padding:"14px 16px", ...F.sub3, color:s.score>=80?C.green6:s.score>=60?C.orange6:C.red6 }}>{s.score}점</td>
-                  <td style={{ padding:"14px 16px", ...F.caption, color:C.grey5 }}>{s.date}</td>
-                  <td style={{ padding:"14px 16px" }}>
-                    <button style={{ padding:"6px 16px", border:`1px solid ${C.lightBlue6}`, borderRadius:4, ...F.caption, color:C.lightBlue6, background:C.lightBlue1, cursor:"pointer" }}>상세보기</button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+
+                    {/* 액션 버튼들 */}
+                    <div style={{ display:"flex", alignItems:"center", gap:8, flex:1, justifyContent:"flex-end" }}>
+                      {isDone && (
+                        <button style={{ padding:"0 16px", height:36, border:`1px solid ${C.grey3}`, borderRadius:10, ...F.caption, color:C.grey8, background:C.white, cursor:"pointer" }}>코칭카드</button>
+                      )}
+                      {isDone ? (
+                        <button style={{ display:"flex", alignItems:"center", gap:4, padding:"0 14px", height:36, border:`1px solid ${C.lightBlue6}`, borderRadius:10, ...F.caption, color:C.lightBlue6, background:C.white, cursor:"pointer" }}>
+                          <span>{s.score}점</span><span style={{ fontSize:12 }}>›</span>
+                        </button>
+                      ) : (
+                        wrongCount>0 && (
+                          <button style={{ display:"flex", alignItems:"center", gap:4, padding:"0 14px", height:36, border:`1px solid ${C.red6}`, borderRadius:10, ...F.caption, color:C.red6, background:C.white, cursor:"pointer" }}>
+                            <span>오답 {wrongCount}개</span><span style={{ fontSize:12 }}>›</span>
+                          </button>
+                        )
+                      )}
+                      {isDone && (
+                        <button style={{ display:"flex", alignItems:"center", gap:4, padding:"0 14px", height:36, border:`1px solid ${"#0099D7"}`, borderRadius:10, ...F.caption, color:"#0099D7", background:C.white, cursor:"pointer" }}>
+                          <span>풀이</span><span style={{ fontSize:12 }}>✎</span>
+                        </button>
+                      )}
+                      <button onClick={()=>onSelect(s)} style={{ padding:"0 16px", height:36, border:`1px solid ${C.lightBlue6}`, borderRadius:10, ...F.caption, color:C.lightBlue6, background:C.lightBlue1, cursor:"pointer" }}>학습이력</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
         </div>
       </div>
     </div>
