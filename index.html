@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>통합LMS · GrammarFit 프로토타입 v0.2</title>
+  <title>통합LMS · GrammarFit 프로토타입 v0.3</title>
   <link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" rel="stylesheet" />
   <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
@@ -516,96 +516,231 @@ const CoachingModal = ({ lesson, lessonType, onClose }) => {
 };
 
 // ─── 지식맵 탭 ───────────────────────────────────────────────────────────
-const KnowledgeMapTab = () => {
-  const [selected, setSelected] = useState(null);
-  const levelColor = (level, score) => {
-    if(score===null) return { bg:C.grey1, border:C.grey2, text:C.grey4 };
-    if(level==="우수") return { bg:C.green1, border:C.green6, text:C.green6 };
-    if(level==="양호") return { bg:C.lightBlue1, border:C.lightBlue6, text:C.lightBlue6 };
-    return { bg:C.red1, border:C.red6, text:C.red6 };
+// ─── 지식맵 데이터 ────────────────────────────────────────────────────────
+const GRAMMAR_CATEGORIES = [
+  { id: "all",   label: "전체" },
+  { id: "noun",  label: "명사/대명사" },
+  { id: "be",    label: "be동사" },
+  { id: "verb",  label: "일반동사" },
+  { id: "tense", label: "시제/진행" },
+  { id: "modal", label: "조동사" },
+  { id: "adj",   label: "형용사/부사" },
+  { id: "prep",  label: "전치사/의문사" },
+];
+
+const GRAMMAR_ITEMS = [
+  // 명사/대명사
+  { id:1,  cat:"noun",  label:"단수 vs 복수",     score:92, status:"우수" },
+  { id:2,  cat:"noun",  label:"복수형 -s/-es",     score:85, status:"우수" },
+  { id:3,  cat:"noun",  label:"불규칙 복수",       score:72, status:"보통" },
+  { id:4,  cat:"noun",  label:"인칭 대명사",       score:81, status:"우수" },
+  { id:5,  cat:"noun",  label:"지시 대명사",       score:68, status:"보통" },
+  { id:6,  cat:"noun",  label:"소유격 my/your",    score:55, status:"취약" },
+  // be동사
+  { id:7,  cat:"be",    label:"am / are / is",     score:94, status:"우수" },
+  { id:8,  cat:"be",    label:"be동사 긍정문",     score:88, status:"우수" },
+  { id:9,  cat:"be",    label:"be동사 부정문",     score:82, status:"우수" },
+  { id:10, cat:"be",    label:"be동사 의문문",     score:74, status:"보통" },
+  { id:11, cat:"be",    label:"There is/are",      score:48, status:"취약" },
+  { id:12, cat:"be",    label:"Yes/No 응답",       score:70, status:"보통" },
+  // 일반동사
+  { id:13, cat:"verb",  label:"주어 찾기",         score:83, status:"우수" },
+  { id:14, cat:"verb",  label:"동사 찾기",         score:null, status:"시작전" },
+  { id:15, cat:"verb",  label:"S + V 구조",        score:70, status:"보통" },
+  { id:16, cat:"verb",  label:"3인칭 -s",          score:52, status:"취약" },
+  { id:17, cat:"verb",  label:"부정문 don't",      score:45, status:"취약" },
+  { id:18, cat:"verb",  label:"의문문 Do ~?",      score:40, status:"취약" },
+  { id:19, cat:"verb",  label:"명령문",            score:null, status:"시작전" },
+  // 시제/진행
+  { id:20, cat:"tense", label:"현재형 기본",       score:75, status:"보통" },
+  { id:21, cat:"tense", label:"현재 진행형",       score:62, status:"보통" },
+  { id:22, cat:"tense", label:"-ing 만들기",       score:55, status:"취약" },
+  { id:23, cat:"tense", label:"과거시제 규칙",     score:null, status:"시작전" },
+  { id:24, cat:"tense", label:"과거시제 불규칙",   score:null, status:"시작전" },
+  // 조동사
+  { id:25, cat:"modal", label:"can / can't",       score:88, status:"우수" },
+  { id:26, cat:"modal", label:"must / have to",    score:null, status:"시작전" },
+  { id:27, cat:"modal", label:"will / won't",      score:null, status:"시작전" },
+  // 형용사/부사
+  { id:28, cat:"adj",   label:"형용사 기본",       score:79, status:"보통" },
+  { id:29, cat:"adj",   label:"비교급 -er",        score:null, status:"시작전" },
+  { id:30, cat:"adj",   label:"최상급 -est",       score:null, status:"시작전" },
+  // 전치사/의문사
+  { id:31, cat:"prep",  label:"장소 전치사",       score:82, status:"우수" },
+  { id:32, cat:"prep",  label:"시간 전치사",       score:67, status:"보통" },
+  { id:33, cat:"prep",  label:"의문사 what/who",   score:null, status:"시작전" },
+  { id:34, cat:"prep",  label:"의문사 when/where", score:null, status:"시작전" },
+];
+
+// ─── 헥사곤 SVG 컴포넌트 ─────────────────────────────────────────────────
+const HexItem = ({ item, onClick }) => {
+  const statusStyle = {
+    "우수":   { bg:"#4CAF50", text:"#FFFFFF", border:"#4CAF50" },
+    "보통":   { bg:"#FFC107", text:"#FFFFFF", border:"#FFC107" },
+    "취약":   { bg:"#F44336", text:"#FFFFFF", border:"#F44336" },
+    "시작전": { bg:"#EEEEEE", text:"#AAAAAA", border:"#DDDDDD" },
   };
+  const s = statusStyle[item.status];
+  const W = 110, H = 124;
+  // 헥사곤 포인트 (뾰족한 위아래)
+  const cx = W/2, cy = H/2, rx = W/2 - 4, ry = H/2 - 4;
+  const pts = [0,1,2,3,4,5].map(i => {
+    const a = Math.PI/180 * (60*i - 30);
+    return `${cx + rx*Math.cos(a)},${cy + ry*Math.sin(a)}`;
+  }).join(" ");
+
+  return (
+    <div onClick={()=>item.status!=="시작전"&&onClick(item)}
+      style={{ width:W, height:H, position:"relative", cursor:item.status!=="시작전"?"pointer":"default",
+        transition:"transform 0.15s", flexShrink:0 }}
+      onMouseEnter={e=>{ if(item.status!=="시작전") e.currentTarget.style.transform="scale(1.06)"; }}
+      onMouseLeave={e=>{ e.currentTarget.style.transform="scale(1)"; }}>
+      <svg width={W} height={H} style={{ position:"absolute", top:0, left:0 }}>
+        <polygon points={pts} fill={s.bg} stroke={s.border} strokeWidth={2}/>
+      </svg>
+      <div style={{ position:"absolute", inset:0, display:"flex", flexDirection:"column",
+        alignItems:"center", justifyContent:"center", textAlign:"center", padding:"0 10px" }}>
+        <div style={{ fontFamily:"'Pretendard',sans-serif", fontWeight:700, fontSize:12,
+          color:s.text, lineHeight:1.3, marginBottom:4 }}>{item.label}</div>
+        {item.score !== null
+          ? <div style={{ fontFamily:"'Pretendard',sans-serif", fontWeight:700, fontSize:16,
+              color:s.text }}>{item.score}%</div>
+          : <div style={{ fontSize:16, color:s.text }}>🔒</div>
+        }
+      </div>
+    </div>
+  );
+};
+
+// ─── 지식맵 탭 (전체 교체) ────────────────────────────────────────────────
+const KnowledgeMapTab = () => {
+  const [activeCat, setActiveCat] = useState("all");
+  const [selected, setSelected] = useState(null);
+
+  const filtered = activeCat==="all"
+    ? GRAMMAR_ITEMS
+    : GRAMMAR_ITEMS.filter(i=>i.cat===activeCat);
+
+  const total   = GRAMMAR_ITEMS.length;
+  const great   = GRAMMAR_ITEMS.filter(i=>i.status==="우수").length;
+  const normal  = GRAMMAR_ITEMS.filter(i=>i.status==="보통").length;
+  const weak    = GRAMMAR_ITEMS.filter(i=>i.status==="취약").length;
+  const notyet  = GRAMMAR_ITEMS.filter(i=>i.status==="시작전").length;
+
+  // 현재 카테고리 달성률
+  const catItems = filtered.filter(i=>i.score!==null);
+  const catPct = catItems.length
+    ? Math.round(catItems.reduce((s,i)=>s+i.score,0)/catItems.length)
+    : null;
+  const catLabel = activeCat==="all" ? "" : GRAMMAR_CATEGORIES.find(c=>c.id===activeCat)?.label;
+
+  // 헥사곤 그리드: 지그재그 배치
+  const rows = [];
+  const perRow = 6;
+  for(let i=0; i<filtered.length; i+=perRow) rows.push(filtered.slice(i, i+perRow));
 
   return (
     <div>
-      {/* 범례 */}
-      <div style={{ display:"flex", gap:16, marginBottom:20, alignItems:"center" }}>
-        <span style={{ ...F.caption, color:C.grey6 }}>성취도 범례</span>
-        {[["우수","green","80점 이상"],["양호","blue","60~79점"],["취약","red","60점 미만"],["미학습","gray","미완료"]].map(([l,c,desc])=>(
-          <div key={l} style={{ display:"flex", alignItems:"center", gap:6 }}>
-            <div style={{ width:14, height:14, borderRadius:3, background:{green:C.green1,blue:C.lightBlue1,red:C.red1,gray:C.grey1}[c], border:`1.5px solid ${{green:C.green6,blue:C.lightBlue6,red:C.red6,gray:C.grey3}[c]}` }}/>
-            <span style={{ ...F.overline, color:C.grey6 }}>{l} ({desc})</span>
+      {/* 상단 통계 카드 */}
+      <div style={{ display:"flex", gap:12, marginBottom:20 }}>
+        {[
+          { label:"전체", value:total,  icon:"🕐", bg:"#FFFFFF", vc:"#0B0D11" },
+          { label:"우수", value:great,  icon:"🕐", bg:"#FFFFFF", vc:"#4CAF50" },
+          { label:"보통", value:normal, icon:"🕐", bg:"#FFFFFF", vc:"#FFC107" },
+          { label:"취약", value:weak,   icon:"📋", bg:"#FFFFFF", vc:"#F44336" },
+          { label:"시작 전", value:notyet,icon:"📋", bg:"#FFFFFF", vc:"#9E9E9E" },
+        ].map(card=>(
+          <div key={card.label} style={{
+            flex:1, background:C.white, borderRadius:10,
+            border:`1px solid ${C.grey2}`, padding:"14px 16px",
+            boxShadow:"0 1px 4px rgba(0,0,0,0.04)",
+          }}>
+            <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:8 }}>
+              <span style={{ ...F.caption, color:C.grey6 }}>{card.label}</span>
+              <span style={{ fontSize:16, opacity:0.5 }}>{card.icon}</span>
+            </div>
+            <div style={{ fontFamily:"'Pretendard',sans-serif", fontWeight:700,
+              fontSize:28, color:card.vc, lineHeight:1 }}>{card.value}</div>
           </div>
         ))}
       </div>
 
-      {/* 지식맵 그리드 */}
-      <div style={{ background:C.white, borderRadius:8, border:`1px solid ${C.grey2}`, padding:20, marginBottom:16 }}>
-        <div style={{ ...F.sub3, color:C.dark, marginBottom:16 }}>Starter 레벨 — 레슨별 학습 성취도</div>
-        <div style={{ display:"grid", gridTemplateColumns:"repeat(8,1fr)", gap:6 }}>
-          {KNOWLEDGE_MAP.map(item=>{
-            const c=levelColor(item.level, item.score);
-            return (
-              <div key={item.no} onClick={()=>item.score!==null&&setSelected(item)}
-                style={{
-                  padding:"8px 4px", borderRadius:6, textAlign:"center", cursor:item.score!==null?"pointer":"default",
-                  background:c.bg, border:`1.5px solid ${c.border}`,
-                  transition:"transform 0.1s",
-                }}
-                onMouseEnter={e=>{ if(item.score!==null) e.currentTarget.style.transform="scale(1.08)"; }}
-                onMouseLeave={e=>{ e.currentTarget.style.transform="scale(1)"; }}>
-                <div style={{ ...F.overline, color:c.text, fontWeight:700 }}>{item.label}</div>
-                {item.score!==null && <div style={{ fontSize:10, color:c.text, marginTop:2 }}>{item.score}점</div>}
-                {item.score===null && <div style={{ fontSize:10, color:C.grey4, marginTop:2 }}>—</div>}
-              </div>
-            );
-          })}
+      {/* 문법 카테고리 필터 */}
+      <div style={{ display:"flex", gap:8, marginBottom:8, flexWrap:"wrap" }}>
+        {GRAMMAR_CATEGORIES.map(cat=>(
+          <button key={cat.id} onClick={()=>setActiveCat(cat.id)} style={{
+            padding:"6px 16px", borderRadius:999, border:"none", cursor:"pointer",
+            ...F.caption, fontWeight:activeCat===cat.id?700:500,
+            background:activeCat===cat.id?"#4CAF50":C.white,
+            color:activeCat===cat.id?C.white:C.grey8,
+            boxShadow: activeCat===cat.id?"none":"0 0 0 1px #DDE1E4",
+            transition:"all 0.15s",
+          }}>{cat.label}</button>
+        ))}
+      </div>
+
+      {/* 카테고리 달성률 */}
+      {catPct !== null && (
+        <div style={{ ...F.caption, color:C.grey6, marginBottom:16 }}>
+          {catLabel} · {catItems.length}개 레슨&nbsp;
+          <span style={{ fontWeight:700, color:C.dark, fontSize:16 }}>{catPct}%</span>
+          &nbsp;&nbsp;
+          <span style={{ color:"#4CAF50" }}>● 우수</span>&nbsp;
+          <span style={{ color:"#FFC107" }}>● 보통</span>&nbsp;
+          <span style={{ color:"#F44336" }}>● 약함</span>&nbsp;
+          <span style={{ color:"#CCCCCC" }}>● 시작전</span>
+        </div>
+      )}
+
+      {/* 헥사곤 그리드 */}
+      <div style={{ background:C.white, borderRadius:12, border:`1px solid ${C.grey2}`, padding:"24px 20px", overflowX:"auto" }}>
+        <div style={{ display:"flex", flexDirection:"column", gap:0, alignItems:"flex-start", minWidth:700 }}>
+          {rows.map((row, ri) => (
+            <div key={ri} style={{
+              display:"flex", gap:4,
+              marginLeft: ri%2===1 ? 57 : 0,  // 홀수 행 오프셋 → 벌집 패턴
+              marginTop: ri===0 ? 0 : -20,     // 행 간 겹침
+            }}>
+              {row.map(item=>(
+                <HexItem key={item.id} item={item} onClick={setSelected}/>
+              ))}
+            </div>
+          ))}
         </div>
       </div>
 
-      {/* 통계 요약 */}
-      <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:12, marginBottom:16 }}>
-        {[
-          { label:"우수", count:KNOWLEDGE_MAP.filter(i=>i.score!==null&&i.level==="우수").length, color:C.green6, bg:C.green1 },
-          { label:"양호", count:KNOWLEDGE_MAP.filter(i=>i.score!==null&&i.level==="양호").length, color:C.lightBlue6, bg:C.lightBlue1 },
-          { label:"취약", count:KNOWLEDGE_MAP.filter(i=>i.score!==null&&i.level==="취약").length, color:C.red6, bg:C.red1 },
-        ].map(item=>(
-          <div key={item.label} style={{ background:item.bg, borderRadius:8, padding:"14px 16px", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
-            <span style={{ ...F.sub3, color:item.color }}>{item.label}</span>
-            <span style={{ fontFamily:"'Pretendard',sans-serif", fontSize:28, fontWeight:700, color:item.color }}>{item.count}개</span>
-          </div>
-        ))}
-      </div>
-
-      {/* 레슨 선택 모달 */}
+      {/* 세부 모달 */}
       {selected && (
-        <Modal title={`${selected.label} 상세 — ${selected.grammar}`} onClose={()=>setSelected(null)} width={480}>
+        <Modal title={`${selected.label} 상세`} onClose={()=>setSelected(null)} width={460}>
           <div style={{ padding:24 }}>
-            <div style={{ display:"flex", gap:16, marginBottom:20 }}>
+            <div style={{ display:"flex", gap:12, marginBottom:20 }}>
               <div style={{ flex:1, background:C.lightBlue1, borderRadius:8, padding:16, textAlign:"center" }}>
-                <div style={{ ...F.overline, color:C.lightBlue6 }}>레슨</div>
-                <div style={{ ...F.h1, color:C.dark }}>Starter {selected.label}</div>
+                <div style={{ ...F.overline, color:C.lightBlue6 }}>문법 항목</div>
+                <div style={{ ...F.h2, color:C.dark, marginTop:4 }}>{selected.label}</div>
               </div>
-              <div style={{ flex:1, background:levelColor(selected.level,selected.score).bg, borderRadius:8, padding:16, textAlign:"center" }}>
-                <div style={{ ...F.overline, color:levelColor(selected.level,selected.score).text }}>성취 수준</div>
-                <div style={{ ...F.h1, color:levelColor(selected.level,selected.score).text }}>{selected.score}점</div>
-                <Badge text={selected.level} variant="fill" color={selected.level==="우수"?"green":selected.level==="양호"?"blue":"red"}/>
+              <div style={{ flex:1, borderRadius:8, padding:16, textAlign:"center",
+                background:selected.status==="우수"?C.green1:selected.status==="보통"?C.yellow1:C.red1,
+                border:`1px solid ${selected.status==="우수"?C.green6:selected.status==="보통"?C.yellow6:C.red6}`,
+              }}>
+                <div style={{ ...F.overline, color:C.grey6 }}>성취도</div>
+                <div style={{ fontFamily:"'Pretendard',sans-serif", fontSize:32, fontWeight:700,
+                  color:selected.status==="우수"?C.green6:selected.status==="보통"?"#B8860B":C.red6,
+                  marginTop:4 }}>{selected.score}%</div>
+                <Badge text={selected.status} variant="fill"
+                  color={selected.status==="우수"?"green":selected.status==="보통"?"yellow":"red"}/>
               </div>
             </div>
-            <div style={{ ...F.sub3, color:C.dark, marginBottom:8 }}>학습 문법 항목</div>
-            <div style={{ padding:"10px 14px", background:C.grey1, borderRadius:8, ...F.body2, color:C.grey8, marginBottom:16 }}>{selected.grammar}</div>
             <div style={{ ...F.sub3, color:C.dark, marginBottom:8 }}>학습 현황</div>
-            <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
-              {[["Grammar Check","88%"],["실전 퀴즈",`${selected.score}%`],["문장배열 게임","조건부 구현"]].map(([k,v])=>(
-                <div key={k} style={{ display:"flex", justifyContent:"space-between", padding:"8px 12px", borderRadius:6, background:C.grey1 }}>
-                  <span style={{ ...F.body2, color:C.grey8 }}>{k}</span>
-                  <span style={{ ...F.sub3, color:C.dark }}>{v}</span>
-                </div>
-              ))}
-            </div>
-            {selected.level==="취약" && (
-              <div style={{ marginTop:16, padding:"10px 14px", background:C.orange1, borderRadius:8, border:`1px solid ${C.orange6}` }}>
+            {[["Grammar Check","88%"],["실전 퀴즈",`${selected.score}%`],["문장배열 게임","조건부 구현"]].map(([k,v])=>(
+              <div key={k} style={{ display:"flex", justifyContent:"space-between", padding:"8px 12px", borderRadius:6, background:C.grey1, marginBottom:4 }}>
+                <span style={{ ...F.body2, color:C.grey8 }}>{k}</span>
+                <span style={{ ...F.sub3, color:C.dark }}>{v}</span>
+              </div>
+            ))}
+            {selected.status==="취약" && (
+              <div style={{ marginTop:12, padding:"10px 14px", background:C.orange1, borderRadius:8, border:`1px solid ${C.orange6}` }}>
                 <div style={{ ...F.sub3, color:C.orange6, marginBottom:4 }}>⚠️ 복습 권장</div>
-                <div style={{ ...F.body2, color:"#B45309" }}>이 레슨의 성취도가 낮습니다. 복습 레슨 진행을 권장합니다.</div>
+                <div style={{ ...F.body2, color:"#B45309" }}>성취도가 낮습니다. 해당 문법 복습 레슨 진행을 권장합니다.</div>
               </div>
             )}
           </div>
