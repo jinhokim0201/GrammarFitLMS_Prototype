@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>통합LMS · GrammarFit 프로토타입 v0.4</title>
+  <title>통합LMS · GrammarFit 프로토타입 v0.3</title>
   <link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" rel="stylesheet" />
   <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
@@ -45,11 +45,11 @@ const F = {
 
 // ─── 더미 데이터 ──────────────────────────────────────────────────────────
 const STUDENTS = [
-  { id:1, name:"김민준", grade:"중2", lesson:"Starter Lesson 24", score:85, date:"2026-05-20", type:"기본" },
-  { id:2, name:"이서연", grade:"중1", lesson:"기초평가 1",        score:72, date:"2026-05-20", type:"기초평가" },
-  { id:3, name:"박지호", grade:"중3", lesson:"총괄평가 1",        score:91, date:"2026-05-19", type:"총괄평가" },
-  { id:4, name:"최유나", grade:"중1", lesson:"Starter Lesson 12", score:68, date:"2026-05-19", type:"기본" },
-  { id:5, name:"정도윤", grade:"중2", lesson:"Starter Lesson 36 (복습)", score:78, date:"2026-05-18", type:"복습" },
+  { id:1, name:"김민준", grade:"중2", memberId:"0012344777", lesson:"Starter Lesson 24", score:85,  achieveRate:85,  date:"2026-05-20", type:"기본",    studentType:null,  lessonStatus:"학습완료" },
+  { id:2, name:"이서연", grade:"중1", memberId:"0098765432", lesson:"기초평가 1",        score:72,  achieveRate:null, date:"2026-05-20", type:"기초평가",studentType:"체험", lessonStatus:"학습중" },
+  { id:3, name:"박지호", grade:"중3", memberId:"0011223344", lesson:"총괄평가 1",        score:91,  achieveRate:72,  date:"2026-05-19", type:"총괄평가",studentType:null,  lessonStatus:"학습완료" },
+  { id:4, name:"최유나", grade:"중1", memberId:"0054321098", lesson:"Starter Lesson 12", score:68,  achieveRate:51,  date:"2026-05-19", type:"기본",    studentType:"신입", lessonStatus:"미완료" },
+  { id:5, name:"정도윤", grade:"중2", memberId:"0076543210", lesson:"Starter Lesson 36 (복습)", score:78, achieveRate:null, date:"2026-05-18", type:"복습", studentType:null, lessonStatus:"학습중" },
 ];
 const HISTORY = [
   { id:1, lesson:"Starter Lesson 24",      type:"기본",    date:"2026-05-20", score:85, coaching:true  },
@@ -1011,25 +1011,43 @@ const HomePage = () => (
   </div>
 );
 
-// ─── 학생관리 페이지 (피그마 카드 레이아웃 기준) ──────────────────────────
+// ─── 학생관리 페이지 (피그마 카드 레이아웃) ────────────────────────────────
 const StudentsPage = ({ onSelect }) => {
   const [subTab, setSubTab] = useState("today");
   const [statusFilter, setStatusFilter] = useState("all");
-  const [gradeFilter, setGradeFilter] = useState("all");
   const [search, setSearch] = useState("");
 
   const todayStudents = STUDENTS.filter(s=>s.date==="2026-05-20");
   const baseList = subTab==="today" ? todayStudents : STUDENTS;
-  const displayed = baseList
-    .filter(s=>gradeFilter==="all" || s.grade===gradeFilter)
-    .filter(s=>!search || s.name.includes(search));
+  const displayed = baseList.filter(s=>!search||s.name.includes(search));
 
-  // 오늘학습 탭: 상태 필터 (전체/학습중/학습완료)
-  const todayFiltered = statusFilter==="all" ? displayed
-    : statusFilter==="progress" ? displayed.filter((_,i)=>i%2===0)  // 더미: 짝수 인덱스=학습중
-    : displayed.filter((_,i)=>i%2!==0);                              // 더미: 홀수=완료
+  // 오늘학습 탭 상태 필터 (더미: 짝수=학습중, 홀수=완료)
+  const finalList = subTab==="today" && statusFilter!=="all"
+    ? displayed.filter((_,i)=>statusFilter==="progress"?i%2===0:i%2!==0)
+    : displayed;
 
-  const finalList = subTab==="today" ? todayFiltered : displayed;
+  // 학습상태 뱃지 (피그마 3가지 state: 학습완료/학습중/미완료)
+  const LessonBadge = ({ status }) => {
+    const cfg = status==="학습완료"
+      ? { label:"학습 완료", bg:"#E8F5E9", border:"#4CAF50",     color:"#4CAF50" }
+      : status==="학습중"
+      ? { label:"학습 중",   bg:C.lightBlue1, border:C.lightBlue6, color:C.lightBlue6 }
+      : { label:"미완료",    bg:C.grey1,      border:C.grey3,       color:C.grey5 };
+    return (
+      <span style={{ padding:"1px 8px", background:cfg.bg, border:`1px solid ${cfg.border}`, borderRadius:999, ...F.overline, color:cfg.color, whiteSpace:"nowrap" }}>{cfg.label}</span>
+    );
+  };
+
+  // 신입/체험 뱃지 (피그마: 과목명 우측에만 표시)
+  const StudentTypeBadge = ({ type }) => {
+    if(!type) return null;
+    const cfg = type==="신입"
+      ? { bg:"#FFF3E0", color:"#FF9800" }
+      : { bg:C.lightBlue1, color:C.lightBlue6 };
+    return (
+      <span style={{ padding:"0 8px", background:cfg.bg, borderRadius:999, ...F.overline, color:cfg.color, height:22, display:"inline-flex", alignItems:"center" }}>{type}</span>
+    );
+  };
 
   return (
     <div style={{ flex:1, overflowY:"auto" }}>
@@ -1038,132 +1056,146 @@ const StudentsPage = ({ onSelect }) => {
         <span style={{ ...F.h1, color:C.dark, display:"block", marginBottom:20 }}>학생관리</span>
 
         {/* 오늘학습/모든학생 탭 */}
-        <div style={{ display:"flex", borderBottom:`1px solid ${C.grey2}`, marginBottom:24 }}>
+        <div style={{ display:"flex", borderBottom:`1px solid ${C.grey2}`, marginBottom:0 }}>
           {[["today","오늘 학습"],["all","모든 학생"]].map(([id,label])=>(
             <button key={id} onClick={()=>{ setSubTab(id); setStatusFilter("all"); }} style={{
-              padding:"12px 20px", border:"none", background:"none", cursor:"pointer",
-              ...F.h3, color:subTab===id?C.lightBlue6:C.grey8, fontWeight:subTab===id?700:500,
-              borderBottom:subTab===id?`2px solid ${C.lightBlue6}`:"2px solid transparent", marginBottom:-1,
+              padding:"16px 16px", border:"none", background:"none", cursor:"pointer",
+              ...F.body2, color:subTab===id?C.lightBlue6:C.grey8, fontWeight:subTab===id?700:500,
+              borderBottom:subTab===id?`3px solid ${C.lightBlue6}`:"1px solid transparent", marginBottom:-1,
             }}>{label}</button>
           ))}
         </div>
 
-        {/* 필터 바 (피그마 기준: 세그먼트 그룹 + 검색) */}
-        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
-          <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-            {subTab==="today" && (
-              <div style={{ display:"flex", border:`1px solid ${C.lightBlue6}`, borderRadius:10, overflow:"hidden" }}>
-                {[["all","전체"],["progress","학습 중"],["done","학습 완료"]].map(([id,label],i)=>(
-                  <button key={id} onClick={()=>setStatusFilter(id)} style={{
-                    padding:"0 20px", height:44,
-                    border:"none",
-                    borderLeft: i>0 ? `1px solid ${C.lightBlue6}` : "none",
-                    background: statusFilter===id ? C.lightBlue6 : C.white,
-                    color: statusFilter===id ? C.white : C.dark,
-                    cursor:"pointer", ...F.body2, fontWeight:500,
-                  }}>{label}</button>
-                ))}
-              </div>
-            )}
-            {subTab==="all" && (
-              <>
-                <select onChange={e=>setGradeFilter(e.target.value)} style={{ padding:"0 16px", height:44, border:`1px solid ${C.grey3}`, borderRadius:10, ...F.body2, color:C.dark, cursor:"pointer" }}>
-                  <option value="all">전체 학년</option><option value="중1">중1</option><option value="중2">중2</option><option value="중3">중3</option>
-                </select>
-                <select style={{ padding:"0 16px", height:44, border:`1px solid ${C.grey3}`, borderRadius:10, ...F.body2, color:C.dark, cursor:"pointer" }}>
-                  <option>전체 요일</option><option>월</option><option>화</option><option>수</option><option>목</option><option>금</option>
-                </select>
-              </>
-            )}
-          </div>
-          <input
-            placeholder="학생 이름 검색"
-            value={search}
-            onChange={e=>setSearch(e.target.value)}
-            style={{ padding:"0 16px", height:48, border:`1px solid ${C.grey3}`, borderRadius:10, ...F.body2, width:250, outline:"none" }}
-          />
-        </div>
-
-        {/* 학생 수 표시 */}
-        <div style={{ marginBottom:16 }}>
-          <span style={{ fontFamily:"'Pretendard',sans-serif", fontWeight:700, fontSize:20, color:C.grey8, lineHeight:1.5 }}>{finalList.length}명</span>
-        </div>
-
-        {/* 학생 카드 목록 (피그마 카드 레이아웃) */}
-        <div style={{ display:"flex", flexDirection:"column", gap:16 }}>
-          {finalList.length===0 && (
-            <div style={{ textAlign:"center", padding:"60px 0", ...F.body2, color:C.grey5 }}>해당 학생이 없습니다.</div>
-          )}
-          {finalList.map((s,idx)=>{
-            const isDone = idx%2!==0; // 더미: 홀수=완료, 짝수=학습중
-            const wrongCount = isDone ? 0 : 2;
-            return (
-              <div key={s.id} style={{ background:C.white, borderRadius:10, border:`1px solid ${C.grey2}`, overflow:"hidden" }}>
-                {/* 카드 헤더: 이름 + 학년 + 출석입력 */}
-                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"0 24px", height:60, borderBottom:`1px solid ${C.grey2}` }}>
-                  <div style={{ display:"flex", alignItems:"center", gap:16 }}>
-                    <span style={{ fontFamily:"'Pretendard',sans-serif", fontWeight:700, fontSize:20, color:C.dark, lineHeight:"30px" }}>{s.name}</span>
-                    <div style={{ display:"flex", alignItems:"center", gap:12, ...F.body2, color:C.grey8 }}>
-                      <span>{s.grade}</span>
-                      <div style={{ width:1, height:16, background:C.grey2 }}/>
-                      <span style={{ color:C.grey5 }}>010-****-{1000+s.id}0</span>
-                    </div>
-                  </div>
-                  <button style={{ padding:"7px 16px", border:`1px solid ${C.red6}`, borderRadius:10, ...F.caption, color:C.red6, background:C.white, cursor:"pointer" }}>출석 입력</button>
+        {/* 콘텐츠 영역 */}
+        <div style={{ background:C.white, padding:40, borderRadius:"0 0 8px 8px" }}>
+          {/* 필터 바 */}
+          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", paddingBottom:20 }}>
+            <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+              {subTab==="today" && (
+                // 피그마: buttons toggle — border로 묶인 세그먼트 그룹
+                <div style={{ display:"flex", alignItems:"center", border:`1px solid ${C.grey2}`, borderRadius:8, overflow:"hidden", height:48 }}>
+                  {[["all","전체"],["progress","학습 중"],["done","학습 완료"]].map(([id,label],i)=>(
+                    <button key={id} onClick={()=>setStatusFilter(id)} style={{
+                      padding:"0 20px", height:48, border:"none",
+                      borderLeft: i>0 ? `1px solid ${C.grey2}` : "none",
+                      background: statusFilter===id ? C.lightBlue6 : C.white,
+                      color: statusFilter===id ? C.white : C.dark,
+                      cursor:"pointer", ...F.body2, fontWeight:500,
+                    }}>{label}</button>
+                  ))}
                 </div>
+              )}
+              {subTab==="all" && (
+                <div style={{ display:"flex", gap:8 }}>
+                  <select style={{ padding:"0 16px", height:48, border:`1px solid ${C.grey3}`, borderRadius:8, ...F.body2, color:C.dark, cursor:"pointer" }}>
+                    <option>전체 학년</option><option>중1</option><option>중2</option><option>중3</option>
+                  </select>
+                  <select style={{ padding:"0 16px", height:48, border:`1px solid ${C.grey3}`, borderRadius:8, ...F.body2, color:C.dark, cursor:"pointer" }}>
+                    <option>전체 요일</option><option>월</option><option>화</option><option>수</option><option>목</option><option>금</option>
+                  </select>
+                </div>
+              )}
+            </div>
+            {/* 피그마: search input (251x48, border grey-3, borderRadius 8px) */}
+            <div style={{ display:"flex", alignItems:"center", border:`1px solid ${C.grey3}`, borderRadius:8, height:48, padding:"0 16px", gap:8 }}>
+              <input
+                placeholder="학생 이름 검색"
+                value={search}
+                onChange={e=>setSearch(e.target.value)}
+                style={{ border:"none", outline:"none", ...F.body2, width:195, color:C.dark }}
+              />
+              <span style={{ color:C.grey5, fontSize:16 }}>🔍</span>
+            </div>
+          </div>
 
-                {/* 카드 본문: 과목 + 진도 + 액션버튼 */}
-                <div style={{ padding:"20px 24px" }}>
-                  <div style={{ display:"flex", alignItems:"center", gap:40 }}>
-                    {/* 과목 */}
-                    <div style={{ display:"flex", alignItems:"center", gap:8, width:200, flexShrink:0 }}>
-                      <span style={{ fontFamily:"'Pretendard',sans-serif", fontWeight:500, fontSize:18, color:C.grey8, lineHeight:"27px" }}>GrammarFit</span>
-                      <span style={{ padding:"2px 8px", background:C.green1, border:`1px solid ${C.green6}`, borderRadius:999, fontFamily:"'Pretendard',sans-serif", fontWeight:500, fontSize:13, color:C.green6, lineHeight:"19.5px" }}>GF</span>
-                    </div>
+          {/* 학생 수 + 정렬 */}
+          <div style={{ display:"flex", alignItems:"center", gap:4, paddingBottom:24 }}>
+            <span style={{ ...F.h2, color:C.grey8 }}>{finalList.length}명</span>
+            <span style={{ ...F.caption, color:C.grey5 }}>▼</span>
+          </div>
 
-                    {/* 진도 */}
-                    <div style={{ display:"flex", flexDirection:"column", gap:4, width:280, flexShrink:0 }}>
-                      <span style={{ ...F.overline, color:C.grey6 }}>진도</span>
-                      <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-                        <span style={{ ...F.body2, color:C.grey8 }}>Starter · {s.lesson}</span>
-                        {isDone
-                          ? <div style={{ display:"flex", alignItems:"center", gap:4 }}>
-                              <span style={{ ...F.caption, color:C.grey5 }}>{s.date}</span>
-                              <span style={{ color:C.green6, fontSize:14 }}>✓</span>
-                            </div>
-                          : <span style={{ padding:"1px 10px", background:C.lightBlue1, border:`1px solid ${C.lightBlue6}`, borderRadius:999, ...F.overline, color:C.lightBlue6 }}>학습 중</span>
-                        }
+          {/* 학생 카드 목록 */}
+          {finalList.length===0 && (
+            <div style={{ textAlign:"center", padding:"60px 0", ...F.body2, color:C.grey5 }}>
+              <div style={{ fontSize:40, marginBottom:16 }}>🔍</div>
+              <div>해당하는 학생이 없습니다.</div>
+            </div>
+          )}
+          <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+            {finalList.map(s=>{
+              const isDone = s.lessonStatus === "학습완료";
+              const achieveColor = s.achieveRate < 60 ? C.red6 : C.dark;
+              return (
+                <div key={s.id} style={{ paddingBottom:40 }}>
+                  {/* 카드 title: 이름 + [학년|회원번호] + 출석현황 버튼 */}
+                  <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
+                    <div style={{ display:"flex", alignItems:"center", gap:24 }}>
+                      <span style={{ ...F.h1, color:C.dark }}>{s.name}</span>
+                      <div style={{ display:"flex", alignItems:"center", gap:16, ...F.sub2, color:C.grey8 }}>
+                        <span>{s.grade}</span>
+                        <div style={{ width:0, height:15, borderLeft:`1px solid ${C.grey2}` }}/>
+                        <span>{s.memberId}</span>
                       </div>
                     </div>
+                    <button style={{ display:"flex", alignItems:"center", gap:6, padding:"0 16px", height:40, border:`1px solid ${C.grey4}`, borderRadius:999, ...F.body2, color:C.grey8, background:C.white, cursor:"pointer" }}>
+                      <span style={{ fontSize:16 }}>🗓</span>출석 현황
+                    </button>
+                  </div>
 
-                    {/* 액션 버튼들 */}
-                    <div style={{ display:"flex", alignItems:"center", gap:8, flex:1, justifyContent:"flex-end" }}>
-                      {isDone && (
-                        <button style={{ padding:"0 16px", height:36, border:`1px solid ${C.grey3}`, borderRadius:10, ...F.caption, color:C.grey8, background:C.white, cursor:"pointer" }}>코칭카드</button>
-                      )}
+                  {/* 카드 body: 과목 정보 행 */}
+                  <div style={{ border:`1px solid ${C.grey2}`, borderRadius:4, overflow:"hidden" }}>
+                    <div style={{ display:"flex", alignItems:"center", flexWrap:"wrap", gap:8, padding:"16px 24px", borderBottom:`1px solid ${C.grey2}` }}>
+                      {/* 과목명 + 신입/체험 뱃지 (피그마: 220px 고정) */}
+                      <div style={{ display:"flex", alignItems:"center", gap:8, width:220, flexShrink:0 }}>
+                        <span style={{ ...F.sub2, color:C.grey8 }}>GrammarFit</span>
+                        <StudentTypeBadge type={s.studentType}/>
+                      </div>
+
+                      {/* 학습 요일 (피그마: 102px) */}
+                      <div style={{ display:"flex", flexDirection:"column", gap:4, width:102, flexShrink:0, paddingRight:8 }}>
+                        <span style={{ ...F.caption, color:C.grey6 }}>학습 요일</span>
+                        <span style={{ ...F.body2, color:C.grey8 }}>월, 수, 금</span>
+                      </div>
+
+                      {/* 최근 진도 */}
+                      <div style={{ display:"flex", flexDirection:"column", gap:4, flex:1, minWidth:160, paddingRight:8 }}>
+                        <span style={{ ...F.caption, color:C.grey6 }}>최근 진도</span>
+                        <div style={{ display:"flex", alignItems:"center", gap:4 }}>
+                          <span style={{ ...F.body2, color:C.grey8 }}>Starter · {s.lesson}</span>
+                          <LessonBadge status={s.lessonStatus}/>
+                        </div>
+                      </div>
+
+                      {/* 성취율 (피그마: 68px) */}
+                      <div style={{ display:"flex", flexDirection:"column", gap:4, width:68, flexShrink:0, paddingRight:8 }}>
+                        <span style={{ ...F.caption, color:C.grey6 }}>성취율</span>
+                        {s.achieveRate != null
+                          ? <span style={{ ...F.body2, color:achieveColor }}>{s.achieveRate}%</span>
+                          : <span style={{ ...F.body2, color:C.grey5 }}>-</span>
+                        }
+                      </div>
+
+                      {/* 학습결과 버튼: 비활성(grey-1 bg) / 활성(white + dark border) */}
                       {isDone ? (
-                        <button style={{ display:"flex", alignItems:"center", gap:4, padding:"0 14px", height:36, border:`1px solid ${C.lightBlue6}`, borderRadius:10, ...F.caption, color:C.lightBlue6, background:C.white, cursor:"pointer" }}>
-                          <span>{s.score}점</span><span style={{ fontSize:12 }}>›</span>
+                        <button onClick={()=>{}} style={{ display:"flex", alignItems:"center", gap:4, padding:"8px 16px", border:`1px solid ${C.grey8}`, borderRadius:8, ...F.caption, color:C.grey8, background:C.white, cursor:"pointer", whiteSpace:"nowrap" }}>
+                          학습결과 <span style={{ fontSize:12 }}>›</span>
                         </button>
                       ) : (
-                        wrongCount>0 && (
-                          <button style={{ display:"flex", alignItems:"center", gap:4, padding:"0 14px", height:36, border:`1px solid ${C.red6}`, borderRadius:10, ...F.caption, color:C.red6, background:C.white, cursor:"pointer" }}>
-                            <span>오답 {wrongCount}개</span><span style={{ fontSize:12 }}>›</span>
-                          </button>
-                        )
-                      )}
-                      {isDone && (
-                        <button style={{ display:"flex", alignItems:"center", gap:4, padding:"0 14px", height:36, border:`1px solid ${"#0099D7"}`, borderRadius:10, ...F.caption, color:"#0099D7", background:C.white, cursor:"pointer" }}>
-                          <span>풀이</span><span style={{ fontSize:12 }}>✎</span>
+                        <button disabled style={{ display:"flex", alignItems:"center", gap:4, padding:"8px 16px", border:"none", borderRadius:8, ...F.caption, color:C.grey5, background:C.grey1, cursor:"default", whiteSpace:"nowrap" }}>
+                          학습결과 <span style={{ fontSize:12 }}>›</span>
                         </button>
                       )}
-                      <button onClick={()=>onSelect(s)} style={{ padding:"0 16px", height:36, border:`1px solid ${C.lightBlue6}`, borderRadius:10, ...F.caption, color:C.lightBlue6, background:C.lightBlue1, cursor:"pointer" }}>학습이력</button>
+
+                      {/* 학습이력 버튼: 항상 활성 (light-blue-1 bg, light-blue-6 border) */}
+                      <button onClick={()=>onSelect(s)} style={{ padding:"8px 16px", border:`1px solid ${C.lightBlue6}`, borderRadius:8, ...F.caption, color:C.lightBlue6, background:C.lightBlue1, cursor:"pointer", whiteSpace:"nowrap" }}>
+                        학습이력
+                      </button>
                     </div>
                   </div>
                 </div>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
         </div>
       </div>
     </div>
