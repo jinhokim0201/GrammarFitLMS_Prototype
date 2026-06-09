@@ -51,13 +51,20 @@ const STUDENTS = [
   { id:4, name:"최유나", grade:"중1", memberId:"0054321098", lesson:"Starter Lesson 12", score:68,  achieveRate:51,  date:"2026-05-19", type:"기본",    studentType:"신입", lessonStatus:"미완료" },
   { id:5, name:"정도윤", grade:"중2", memberId:"0076543210", lesson:"Starter Lesson 36 (복습)", score:78, achieveRate:null, date:"2026-05-18", type:"복습", studentType:null, lessonStatus:"학습중" },
 ];
+// HISTORY 더미 데이터
+// category: 기본레슨/복습레슨/기초평가/총괄평가/수능모의평가
+// coachingType: null=없음(기본레슨·평가), "review_ai"=복습레슨 AI 튜터 (REQ_ILMS_GF_11 삭제, REQ_ILMS_GF_12 유지)
 const HISTORY = [
-  { id:1, lesson:"Starter Lesson 24",      type:"기본",    date:"2026-05-20", score:85, coaching:true  },
-  { id:2, lesson:"Starter Lesson 23 (복습)", type:"복습",   date:"2026-05-18", score:72, coaching:true  },
-  { id:3, lesson:"Starter Lesson 22",      type:"기본",    date:"2026-05-16", score:90, coaching:true  },
-  { id:4, lesson:"기초평가 1",               type:"기초평가", date:"2026-05-14", score:76, coaching:false },
-  { id:5, lesson:"Starter Lesson 21",      type:"기본",    date:"2026-05-12", score:88, coaching:true  },
-  { id:6, lesson:"총괄평가 1",               type:"총괄평가", date:"2026-05-10", score:83, coaching:false },
+  { id:1, category:"기본레슨",    progress:"Starter Lesson 24", resetCount:1, content:"현재완료 긍정문 · Grammar Check", date:"2026-05-20", lessonStatus:"학습완료", resultScore:100,  coachingType:null },
+  { id:2, category:"복습레슨",    progress:"Starter Lesson 23", resetCount:1, content:"현재완료 — Progress Test",        date:"2026-05-18", lessonStatus:"학습완료", resultScore:72,   coachingType:"review_ai" },
+  { id:3, category:"기본레슨",    progress:"Starter Lesson 22", resetCount:1, content:"과거시제 · Grammar Check",        date:"2026-05-16", lessonStatus:"학습완료", resultScore:88,   coachingType:null },
+  { id:4, category:"총괄평가",    progress:"총괄평가 1",         resetCount:0, content:"Starter 레벨 총괄 평가 (1회차)",  date:"2026-05-14", lessonStatus:"학습완료", resultScore:83,   coachingType:null },
+  { id:5, category:"기본레슨",    progress:"Starter Lesson 21", resetCount:1, content:"조동사 should / must",             date:"2026-05-12", lessonStatus:"학습완료", resultScore:95,   coachingType:null },
+  { id:6, category:"기초평가",    progress:"기초평가 1",         resetCount:0, content:"Starter 진단평가 (기초평가)",     date:"2026-05-10", lessonStatus:"학습완료", resultScore:76,   coachingType:null },
+  { id:7, category:"기본레슨",    progress:"Starter Lesson 20", resetCount:1, content:"관계대명사 who / which",           date:"2026-05-08", lessonStatus:"학습중",   resultScore:50,   coachingType:null },
+  { id:8, category:"복습레슨",    progress:"Starter Lesson 19", resetCount:1, content:"수동태 — Progress Test",           date:"2026-05-05", lessonStatus:"미완료",   resultScore:null, coachingType:"review_ai" },
+  { id:9, category:"수능모의평가", progress:"수능모의평가 1회차",  resetCount:1, content:"1레벨 수능모의평가 (1회차)",   date:"2026-04-15", lessonStatus:"학습완료", resultScore:34,   coachingType:null },
+  { id:10,category:"기초평가",    progress:"기초평가 (진단평가)", resetCount:0, content:"수능영어트레이닝 진단평가",   date:"2026-04-10", lessonStatus:"학습완료", resultScore:25,   coachingType:null },
 ];
 
 // 지식맵 더미 데이터: 48개 레슨별 성취도
@@ -192,241 +199,848 @@ const Header = () => (
   </div>
 );
 
-// ─── 풀이화면 모달 (게임 결과 포함) ──────────────────────────────────────
+// ─── 풀이화면 모달 (Figma 16639-90981 기준 — 피그마 디자인 그대로) ─────────
+// 구조: 반투명 배경 > 흰 바디(rounded-tl/tr 16px)
+//   헤더(80px): 우측 X 닫기
+//   콘텐츠(p-40 gap-24):
+//     타이틀 "풀이화면" (h2 center)
+//     상단바: 이름 / 레벨레슨 + 맞춤|추천 뱃지 + 학습일 / 우측 탭토글(레슨학습|오답노트|심화노트|트레이닝노트)
+//     바디: 좌(문항인쇄 버튼, 오답만보기 토글, 항목 목록) + 우(웹뷰 영역 + 하단 이전/1of14/다음)
 const PlayModal = ({ lesson, lessonType, onClose }) => {
-  const [tab, setTab] = useState("lesson");
-  const isReview = lessonType === "복습";
+  const [tab, setTab]           = useState("lesson");
+  const [selIdx, setSelIdx]     = useState(0);
+  const [wrongOnly, setWrongOnly] = useState(false);
 
-  // 기본/복습 레슨: 게임 형태 문제
-  const questions = [
-    { no:1, type:"문장배열", content:"다음 단어를 올바른 순서로 배열하시오.", words:["every","She","school","to","goes","day"], answer:"She goes to school every day.", submitted:"She goes to school every day.", correct:true },
-    { no:2, type:"Grammar Check", content:"빈칸에 알맞은 것을 고르시오.", sentence:"We _____ best friends.", options:["is","am","are","be"], correct:2, answer:2 },
-    { no:3, type:"Grammar Check", content:"올바른 문장을 고르시오.", sentence:"", options:["He don't like coffee.","She doesn't likes tea.","They doesn't go.","I don't know."], correct:3, answer:3 },
-    { no:4, type:"문장배열", content:"다음 단어를 올바른 순서로 배열하시오.", words:["never","I","sushi","eaten","have"], answer:"I have never eaten sushi.", submitted:"I have eaten never sushi.", correct:false },
-    { no:5, type:"Grammar Check", content:"반대말을 고르시오.", sentence:"big", options:["large","huge","small","tall"], correct:2, answer:0 },
+  const items = [
+    { label:"코어독해",                   wrong:false, twin:true  },
+    { label:"코너명 최대 열일곱글자는 이거요", wrong:true,  twin:true  },
+    { label:"Part 3. 모의 수능 풀기",     wrong:false, twin:false },
+    { label:"Part 4. 모의 수능 해답과 오답",wrong:true,  twin:true  },
+    { label:"코어 독해 알아보기",         wrong:false, twin:false },
+    { label:"코어 독해 알아보기",         wrong:false, twin:false },
+    { label:"코어 독해 알아보기",         wrong:true,  twin:true  },
+    { label:"코어 독해 알아보기",         wrong:false, twin:false },
+    { label:"코어 독해 알아보기",         wrong:false, twin:false },
+    { label:"코어 독해 알아보기",         wrong:true,  twin:false },
+    { label:"코어 독해 알아보기",         wrong:false, twin:false },
   ];
-
-  // 쌍둥이 문제 (조건부)
-  const twinQuestions = [
-    { no:1, original:"She _____ to school every day.", twin:"He _____ to work every morning.", options:["go","goes","going","gone"], correct:1, answer:1 },
-    { no:2, original:"I have never _____ sushi.", twin:"She has never _____ abroad.", options:["go","went","gone","going"], correct:2, answer:2 },
-  ];
-
-  const displayed = tab==="wrongnote" ? questions.filter(q=>!q.correct && q.answer!==q.correct) : questions;
-  const wrongCount = questions.filter(q=>q.correct===false||(q.correct!==undefined&&q.answer!==q.correct)).length;
+  // 쌍둥이 문제: 오답이면서 twin=true인 항목
+  const twinItems = items.filter(i=>i.wrong && i.twin);
+  const displayed = tab==="twin" ? twinItems : wrongOnly ? items.filter(i=>i.wrong) : items;
 
   return (
-    <Modal title={`풀이화면 · ${lesson}`} onClose={onClose} width={800}>
-      <div style={{ display:"flex", borderBottom:`1px solid ${C.grey2}`, padding:"0 24px" }}>
-        {[["lesson","레슨학습"],["wrongnote",`오답노트 (${wrongCount})`],["twin","쌍둥이 문제"]].map(([id,label])=>(
-          <button key={id} onClick={()=>setTab(id)} style={{
-            padding:"14px 16px", border:"none", background:"none", cursor:"pointer", ...F.body2,
-            color:tab===id?C.lightBlue6:C.grey6, fontWeight:tab===id?700:500,
-            borderBottom:tab===id?`2px solid ${C.lightBlue6}`:"2px solid transparent",
-          }}>
-            {label}
-            {id==="twin" && <Badge text="조건부" variant="fill" color="yellow" />}
-          </button>
-        ))}
+    <div style={{
+      position:"fixed", inset:0,
+      background:"rgba(11,13,17,0.5)",
+      display:"flex", flexDirection:"column",
+      alignItems:"stretch", justifyContent:"flex-end",
+      zIndex:1000,
+    }}>
+      {/* 상단 닫기 바 (80px) */}
+      <div style={{
+        height:80, display:"flex", alignItems:"center",
+        justifyContent:"flex-end", padding:"0 40px", flexShrink:0,
+      }}>
+        <button onClick={onClose} style={{
+          width:24, height:24, border:"none", background:"none",
+          cursor:"pointer", color:C.white, fontSize:22, lineHeight:1,
+        }}>✕</button>
       </div>
 
-      <div style={{ padding:24 }}>
-        {/* 레슨학습 탭 */}
-        {tab==="lesson" && displayed.map(q=>(
-          <div key={q.no} style={{ marginBottom:16, borderRadius:8, border:`1px solid ${C.grey2}`, overflow:"hidden" }}>
-            <div style={{ padding:"10px 16px", background:C.grey1, display:"flex", alignItems:"center", gap:10 }}>
-              <span style={{ ...F.sub3, color:C.dark }}>Q{q.no}</span>
-              <Badge text={q.type} variant="fill" color={q.type==="문장배열"?"purple":"blue"} />
-              <span style={{ ...F.body2, color:C.grey8, flex:1 }}>{q.content}</span>
-              <span style={{ ...F.h2, color:q.correct?C.green6:C.red6, fontWeight:700 }}>{q.correct?"○":"✗"}</span>
+      {/* 메인 바디 - rounded-tl/tr-16 white */}
+      <div style={{
+        flex:1, background:C.white, borderRadius:"16px 16px 0 0",
+        display:"flex", flexDirection:"column",
+        padding:"40px", gap:24, overflow:"hidden",
+        minHeight:0,
+      }} onClick={e=>e.stopPropagation()}>
+
+        {/* 타이틀 */}
+        <p style={{ ...F.h2, color:C.dark, textAlign:"center", flexShrink:0 }}>풀이화면</p>
+
+        {/* 정보 + 탭 토글 행 */}
+        <div style={{
+          display:"flex", alignItems:"center",
+          gap:40, flexShrink:0,
+        }}>
+          {/* 좌측: 이름 + 레슨정보 + 날짜 */}
+          <div style={{ display:"flex", gap:40, alignItems:"center", flex:1 }}>
+            <span style={{ ...F.sub1, fontWeight:700, color:C.dark, whiteSpace:"nowrap" }}>박중등나야</span>
+            <div style={{ display:"flex", gap:8, alignItems:"center" }}>
+              <span style={{ ...F.sub1, fontWeight:700, color:C.dark, whiteSpace:"nowrap" }}>4레벨 1레슨</span>
+              {/* 맞춤/추천 뱃지 */}
+              <span style={{ background:"#FCE4EC", padding:"0 8px", ...F.caption, color:C.grey8 }}>맞춤</span>
+              <span style={{ background:"#DDD2F8", padding:"0 8px", ...F.caption, color:C.grey8 }}>추천</span>
             </div>
-            {/* 문장배열 게임 */}
-            {q.type==="문장배열" && (
-              <div style={{ padding:"12px 16px" }}>
-                <div style={{ ...F.overline, color:C.grey6, marginBottom:8 }}>단어 카드</div>
-                <div style={{ display:"flex", gap:6, flexWrap:"wrap", marginBottom:12 }}>
-                  {q.words.map((w,i)=>(
-                    <div key={i} style={{ padding:"6px 12px", borderRadius:6, background:C.lightBlue1, border:`1px solid ${C.lightBlue6}`, ...F.caption, color:C.lightBlue6, fontWeight:700 }}>{w}</div>
-                  ))}
-                </div>
-                <div style={{ ...F.overline, color:C.grey6, marginBottom:6 }}>제출 답안</div>
-                <div style={{ padding:"8px 12px", borderRadius:6, border:`1.5px solid ${q.correct?C.green6:C.red6}`, background:q.correct?C.green1:C.red1, ...F.body2, color:q.correct?C.green6:C.red6 }}>
-                  {q.submitted}
-                </div>
-                {!q.correct && (
-                  <div style={{ marginTop:8 }}>
-                    <div style={{ ...F.overline, color:C.grey6, marginBottom:4 }}>정답</div>
-                    <div style={{ padding:"8px 12px", borderRadius:6, border:`1.5px solid ${C.green6}`, background:C.green1, ...F.body2, color:C.green6 }}>{q.answer}</div>
-                  </div>
-                )}
-              </div>
-            )}
-            {/* Grammar Check 객관식 */}
-            {q.type==="Grammar Check" && (
-              <div style={{ padding:"12px 16px" }}>
-                {q.sentence && <div style={{ ...F.body2, color:C.grey8, fontStyle:"italic", marginBottom:10 }}>{q.sentence}</div>}
-                <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
-                  {q.options.map((opt,idx)=>{
-                    const isRight=idx===q.correct, isAns=idx===q.answer;
-                    let bg=C.white, border=C.grey3, color=C.grey8;
-                    if(isRight){bg=C.green1;border=C.green6;color=C.green6;}
-                    else if(isAns&&!isRight){bg=C.red1;border=C.red6;color=C.red6;}
-                    return <div key={idx} style={{ padding:"6px 14px", borderRadius:6, border:`1.5px solid ${border}`, background:bg, color, ...F.caption, fontWeight:isRight||isAns?700:500 }}>{idx+1}. {opt}{isRight?" ✓":""}</div>;
-                  })}
-                </div>
-              </div>
-            )}
+            <div style={{ display:"flex", gap:8, alignItems:"center", flex:1 }}>
+              <span style={{ ...F.sub1, color:C.dark }}>학습일</span>
+              <span style={{ ...F.sub1, fontWeight:700, color:C.dark }}>2024.03.07</span>
+            </div>
           </div>
-        ))}
 
-        {/* 오답노트 탭 */}
-        {tab==="wrongnote" && (
-          displayed.length===0
-            ? <div style={{ textAlign:"center", padding:"60px 0", ...F.body2, color:C.grey5 }}>오답 문항이 없습니다 🎉</div>
-            : displayed.map(q=>(
-              <div key={q.no} style={{ marginBottom:12, padding:16, borderRadius:8, border:`1px solid ${C.red6}`, background:C.red1 }}>
-                <div style={{ display:"flex", gap:8, alignItems:"center", marginBottom:8 }}>
-                  <Badge text={q.type} variant="fill" color="red" />
-                  <span style={{ ...F.body2, color:C.grey8 }}>{q.content}</span>
-                </div>
-                {q.type==="문장배열" && <div style={{ ...F.caption, color:C.red6 }}>제출: {q.submitted} → 정답: {q.answer}</div>}
-              </div>
-            ))
-        )}
-
-        {/* 쌍둥이 문제 탭 */}
-        {tab==="twin" && (
-          <div>
-            <div style={{ background:C.yellow1, border:`1px solid ${C.yellow6}`, borderRadius:8, padding:"10px 14px", marginBottom:16, ...F.body2, color:"#B8860B" }}>
-              ⚠️ 쌍둥이 문제는 실전 퀴즈 오답 문항에 대해서만 출제됩니다. (LCMS 연동 구현 여부 조건부)
-            </div>
-            {twinQuestions.map(q=>(
-              <div key={q.no} style={{ marginBottom:16, borderRadius:8, border:`1px solid ${C.grey2}`, overflow:"hidden" }}>
-                <div style={{ padding:"10px 16px", background:C.grey1 }}>
-                  <div style={{ ...F.overline, color:C.grey5, marginBottom:4 }}>원본 오답 문항</div>
-                  <div style={{ ...F.body2, color:C.grey6, textDecoration:"line-through" }}>{q.original}</div>
-                </div>
-                <div style={{ padding:"12px 16px" }}>
-                  <div style={{ ...F.overline, color:C.lightBlue6, marginBottom:8 }}>🔁 쌍둥이 문제</div>
-                  <div style={{ ...F.body2, color:C.dark, marginBottom:10 }}>{q.twin}</div>
-                  <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
-                    {q.options.map((opt,idx)=>{
-                      const isRight=idx===q.correct, isAns=idx===q.answer;
-                      let bg=C.white,border=C.grey3,color=C.grey8;
-                      if(isRight){bg=C.green1;border=C.green6;color=C.green6;}
-                      else if(isAns&&!isRight){bg=C.red1;border=C.red6;color=C.red6;}
-                      return <div key={idx} style={{ padding:"6px 14px", borderRadius:6, border:`1.5px solid ${border}`, background:bg, color, ...F.caption }}>{idx+1}. {opt}{isRight?" ✓":""}</div>;
-                    })}
-                  </div>
-                </div>
-              </div>
+          {/* 탭 토글 버튼 그룹 — Figma: border, height 48, rounded-8, overflow clip */}
+          <div style={{
+            display:"flex", border:`1px solid ${C.grey2}`,
+            borderRadius:8, height:48, overflow:"hidden", flexShrink:0,
+          }}>
+            {[["lesson","레슨 학습"],["wrongnote","오답노트"],["twin","쌍둥이 문제"],["deep","심화노트"],["training","트레이닝노트"]].map(([id,label])=>(
+              <button key={id} onClick={()=>setTab(id)} style={{
+                minWidth:120, padding:"0 16px", height:"100%",
+                border:"none",
+                borderRight: id!=="training" ? `1px solid ${C.grey2}` : "none",
+                background: tab===id ? C.lightBlue6 : C.white,
+                ...F.body2, color: tab===id ? C.white : C.dark,
+                cursor:"pointer", whiteSpace:"nowrap",
+              }}>{label}</button>
             ))}
           </div>
-        )}
-      </div>
-    </Modal>
-  );
-};
+        </div>
 
-// ─── 분석리포트 모달 (게임결과 섹션 포함) ────────────────────────────────
-const ReportModal = ({ lesson, lessonType, onClose }) => {
-  const isEval = lessonType==="기초평가"||lessonType==="총괄평가";
-  const score = lessonType==="기초평가"?76:lessonType==="총괄평가"?83:lessonType==="복습"?72:85;
-  const parts = isEval
-    ? [{l:"어휘력",v:80},{l:"문장이해력",v:70},{l:"독해력 I",v:75},{l:"독해력 II",v:65}]
-    : [{l:"Grammar Check",v:88},{l:"실전 퀴즈",v:score},{l:"문장배열 게임",v:lessonType==="복습"?72:90}];
+        {/* 컨테이너: 좌열 + 우열 */}
+        <div style={{ display:"flex", gap:40, flex:1, minHeight:0 }}>
 
-  return (
-    <Modal title={`${lessonType} 리포트 · ${lesson}`} onClose={onClose} width={700}>
-      <div style={{ padding:24 }}>
-        {/* 헤더 */}
-        <div style={{ background:C.lightBlue1, borderRadius:8, padding:16, display:"flex", gap:32, marginBottom:24 }}>
-          {[["학생명","김민준"],["학년","중2"],["레벨","Starter"],["학습일","2026-05-20"]].map(([k,v])=>(
-            <div key={k}>
-              <div style={{ ...F.overline, color:C.lightBlue6, marginBottom:2 }}>{k}</div>
-              <div style={{ ...F.sub3, color:C.dark }}>{v}</div>
+          {/* 좌열 — border, rounded-4, overflow clip */}
+          <div style={{
+            border:`1px solid ${C.grey2}`, borderRadius:4,
+            display:"flex", flexDirection:"column",
+            flexShrink:0, overflow:"hidden",
+            width:294,
+          }}>
+            {/* 문항 인쇄 버튼 */}
+            <div style={{ padding:"16px 40px", borderBottom:`1px solid ${C.grey2}`, flexShrink:0 }}>
+              <button style={{
+                width:"100%", height:40, background:C.lightBlue6,
+                border:`1px solid ${C.lightBlue6}`, borderRadius:999,
+                display:"flex", alignItems:"center", justifyContent:"center",
+                gap:4, ...F.body2, color:C.white, cursor:"pointer",
+              }}>문항 인쇄 🖨</button>
             </div>
-          ))}
-        </div>
 
-        {/* 점수 게이지 */}
-        <div style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:48, marginBottom:24 }}>
-          <Gauge score={score} size={140}/>
-          <div>
-            <div style={{ ...F.overline, color:C.grey6, marginBottom:4 }}>종합 점수</div>
-            <div style={{ fontFamily:"'Pretendard',sans-serif", fontSize:40, fontWeight:700, color:score>=80?C.green6:C.orange6, lineHeight:1 }}>{score}점</div>
-            <div style={{ marginTop:8 }}><Badge text={score>=80?"우수":score>=60?"보통":"부족"} variant="fill" color={score>=80?"green":"orange"}/></div>
-          </div>
-        </div>
-
-        {/* 영역별 정답률 */}
-        <div style={{ marginBottom:20 }}>
-          <div style={{ ...F.sub3, color:C.dark, marginBottom:12 }}>영역별 결과</div>
-          {parts.map((p,i)=>(
-            <div key={i} style={{ display:"flex", alignItems:"center", gap:12, marginBottom:10 }}>
-              <span style={{ ...F.body2, color:C.grey8, width:120 }}>{p.l}</span>
-              <div style={{ flex:1, height:8, background:C.grey2, borderRadius:4, overflow:"hidden" }}>
-                <div style={{ width:`${p.v}%`, height:"100%", borderRadius:4, background:p.v>=80?C.green6:p.v>=60?C.orange6:C.red6 }}/>
+            {/* 오답만 보기 토글 */}
+            <div style={{ padding:"16px 24px", display:"flex", alignItems:"center", justifyContent:"flex-end", gap:8, flexShrink:0 }}>
+              <span style={{ ...F.body2, color:"#045F84" }}>오답만 보기</span>
+              <div onClick={()=>setWrongOnly(p=>!p)} style={{
+                width:40, height:22, borderRadius:999,
+                background: wrongOnly ? C.lightBlue6 : C.grey3,
+                position:"relative", cursor:"pointer",
+              }}>
+                <div style={{
+                  width:18, height:18, borderRadius:"50%", background:C.white,
+                  position:"absolute", top:2,
+                  left: wrongOnly ? 20 : 2,
+                  boxShadow:"0 1px 3px rgba(0,0,0,0.2)",
+                }}/>
               </div>
-              <span style={{ ...F.sub3, color:C.dark, width:36, textAlign:"right" }}>{p.v}%</span>
             </div>
-          ))}
-        </div>
 
-        {/* 게임 결과 섹션 (조건부) */}
-        {!isEval && (
-          <div style={{ marginBottom:20, borderRadius:8, border:`1px solid ${C.yellow6}`, overflow:"hidden" }}>
-            <div style={{ padding:"10px 16px", background:C.yellow1, display:"flex", alignItems:"center", gap:8 }}>
-              <span style={{ ...F.sub3, color:"#B8860B" }}>🎮 게임 결과</span>
-              <Badge text="조건부 구현" variant="fill" color="yellow"/>
+            {/* 항목 목록 */}
+            <div style={{ flex:1, overflowY:"auto", padding:"0 24px 24px" }}>
+              {displayed.map((item, i) => {
+                const isActive = items.indexOf(item) === selIdx;
+                return (
+                  <button key={i} onClick={()=>setSelIdx(items.indexOf(item))} style={{
+                    width:"100%", height:40, borderRadius:8,
+                    border: `1px solid #045F84`,
+                    background: isActive ? "#045F84" : C.white,
+                    marginBottom:8,
+                    ...F.body2,
+                    color: isActive ? C.white : "#045F84",
+                    cursor:"pointer", textAlign:"left",
+                    padding:"0 16px",
+                    overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap",
+                  }}>{item.label}</button>
+                );
+              })}
             </div>
-            <div style={{ padding:16, display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
-              {/* 문장배열 게임 */}
-              <div style={{ borderRadius:8, border:`1px solid ${C.grey2}`, padding:14 }}>
-                <div style={{ ...F.sub3, color:C.dark, marginBottom:10 }}>문장 배열 게임</div>
-                {[
-                  { q:"She / goes / to / school", submitted:"She goes to school every day.", correct:true },
-                  { q:"I / have / never / sushi", submitted:"I have eaten never sushi.", correct:false },
-                ].map((item,i)=>(
-                  <div key={i} style={{ marginBottom:8, padding:"8px 10px", borderRadius:6, background:item.correct?C.green1:C.red1, border:`1px solid ${item.correct?C.green6:C.red6}` }}>
-                    <div style={{ ...F.overline, color:C.grey6, marginBottom:2 }}>Q{i+1}. {item.q}</div>
-                    <div style={{ ...F.caption, color:item.correct?C.green6:C.red6 }}>{item.submitted} {item.correct?"✓":"✗"}</div>
+          </div>
+
+          {/* 우열: 웹뷰 영역 + 페이지네이션 */}
+          <div style={{ flex:1, display:"flex", flexDirection:"column", minWidth:0 }}>
+
+            {/* ── 쌍둥이 문제 탭 콘텐츠 ── */}
+            {tab==="twin" && (
+              <div style={{flex:1,overflowY:"auto",padding:24,border:`1px solid ${C.grey2}`,borderRadius:4,background:C.white}}>
+                <div style={{...F.sub3,color:C.dark,marginBottom:4}}>쌍둥이 문제</div>
+                <div style={{...F.caption,color:C.grey5,marginBottom:20}}>
+                  오답 문항과 동일한 유형·난이도의 새 문제입니다. 다시 한번 풀어보세요.
+                </div>
+                {twinItems.length===0 ? (
+                  <div style={{textAlign:"center",padding:"60px 0",...F.body2,color:C.grey4}}>쌍둥이 문제가 없습니다 🎉</div>
+                ) : twinItems.map((item,i)=>(
+                  <div key={i} style={{
+                    marginBottom:16, borderRadius:8,
+                    border:`1px solid ${C.grey2}`, overflow:"hidden",
+                  }}>
+                    {/* 원본 오답 헤더 */}
+                    <div style={{
+                      padding:"10px 16px", background:C.grey1,
+                      borderBottom:`1px solid ${C.grey2}`,
+                      display:"flex", alignItems:"center", gap:8,
+                    }}>
+                      <span style={{
+                        padding:"2px 8px", borderRadius:4,
+                        background:"#FEE2E2", border:"1px solid #EF4444",
+                        ...F.overline, color:"#EF4444", fontSize:11, flexShrink:0,
+                      }}>오답</span>
+                      <span style={{...F.caption,color:C.grey6,flex:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
+                        원본: {item.label}
+                      </span>
+                    </div>
+                    {/* 쌍둥이 문제 본문 */}
+                    <div style={{padding:"16px 20px"}}>
+                      <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:12}}>
+                        <span style={{
+                          padding:"2px 8px", borderRadius:4,
+                          background:"#EFF6FF", border:"1px solid #3B82F6",
+                          ...F.overline, color:"#3B82F6", fontSize:11,
+                        }}>쌍둥이</span>
+                        <span style={{...F.caption,color:C.grey5}}>같은 유형 · 다른 지문</span>
+                      </div>
+                      {/* 지문 */}
+                      <div style={{
+                        padding:"12px 14px", background:C.grey1, borderRadius:6,
+                        ...F.body2, color:C.grey8, lineHeight:1.8, marginBottom:14,
+                      }}>
+                        Tigers are <strong style={{color:"#1565C0"}}>usually</strong> solitary animals, but they sometimes live near water sources where they can find food...
+                      </div>
+                      {/* 어휘 매칭 */}
+                      {[
+                        {word:"usually",   meaning:"대개, 보통",    correct:null},
+                        {word:"solitary",  meaning:"고독한, 혼자인", correct:null},
+                        {word:"source",    meaning:"원천, 출처",     correct:null},
+                      ].map((v,vi)=>(
+                        <div key={vi} style={{display:"flex",alignItems:"center",gap:12,marginBottom:8}}>
+                          <div style={{
+                            width:32,height:32,borderRadius:"50%",
+                            background:"#00ACC1",flexShrink:0,
+                            display:"flex",alignItems:"center",justifyContent:"center",
+                            color:"white",fontSize:13,
+                          }}>🔊</div>
+                          <span style={{...F.body2,color:C.dark,width:100,flexShrink:0}}>{v.word}</span>
+                          <div style={{
+                            flex:1,height:40,border:`1.5px dashed ${C.grey3}`,
+                            borderRadius:6,background:C.white,
+                            display:"flex",alignItems:"center",justifyContent:"center",
+                            ...F.caption,color:C.grey4,
+                          }}>— 선택하세요 —</div>
+                        </div>
+                      ))}
+                      {/* 보기 */}
+                      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6,marginTop:10,paddingTop:10,borderTop:`1px solid ${C.grey2}`}}>
+                        {["대개, 보통","고독한, 혼자인","원천, 출처","외롭게"].map((c,ci)=>(
+                          <div key={ci} style={{
+                            padding:"8px 12px",border:`1.5px dashed ${C.grey3}`,
+                            borderRadius:6,...F.caption,color:C.grey8,background:C.white,
+                            cursor:"pointer",textAlign:"center",
+                          }}>{c}</div>
+                        ))}
+                      </div>
+                    </div>
                   </div>
                 ))}
               </div>
-              {/* 문장 만들기 */}
-              <div style={{ borderRadius:8, border:`1px solid ${C.grey2}`, padding:14 }}>
-                <div style={{ ...F.sub3, color:C.dark, marginBottom:6 }}>문장 만들기</div>
-                <div style={{ background:C.yellow1, borderRadius:6, padding:"8px 10px", marginBottom:8 }}>
-                  <div style={{ ...F.overline, color:"#B8860B" }}>LLM 평가 연동 여부 미정</div>
-                  <div style={{ ...F.caption, color:"#B8860B" }}>현재 구현 가능성 낮음</div>
+            )}
+
+            {/* 웹뷰 영역 — 레슨학습/오답노트/심화노트/트레이닝노트 탭 */}
+            {tab!=="twin" && <div style={{
+              flex:1, background:C.white, borderRadius:4,
+              border:`1px solid ${C.grey2}`,
+              display:"flex", overflow:"hidden", position:"relative",
+            }}>
+              {/* 좌: 지문 영역 */}
+              <div style={{
+                flex:1, padding:32, overflowY:"auto",
+                borderRight:`1px solid ${C.grey2}`,
+              }}>
+                <p style={{ ...F.body2, color:C.dark, lineHeight:1.9 }}>
+                  플로리다는 <span style={{color:"#1565C0",fontWeight:700}}>usually</span> 따뜻하지만, 가끔 추워져요. 날씨가 추워지면 <span style={{color:"#1565C0",fontWeight:700}}>interesting</span>한 장면을 볼 수 있는데 이구아나가 <span style={{color:"#1565C0",fontWeight:700}}>slow</span>하고 <span style={{color:"#1565C0",fontWeight:700}}>sleepy</span>해서 <span style={{color:"#1565C0",fontWeight:700}}>branch</span>에서 <span style={{color:"#1565C0",fontWeight:700}}>fall</span>하는 모습이에요. 그러나 그들은 <span style={{color:"#1565C0",fontWeight:700}}>hurt</span>하거나 <span style={{color:"#1565C0",fontWeight:700}}>dead</span>하지 않으므로 <span style={{color:"#1565C0",fontWeight:700}}>worry</span>하지 마세요. <span style={{color:"#1565C0",fontWeight:700}}>warm</span>해지면 그들은 <span style={{color:"#1565C0",fontWeight:700}}>wake up</span>하고 다시 <span style={{color:"#1565C0",fontWeight:700}}>move</span>할 거에요.
+                </p>
+              </div>
+
+              {/* 우: 문제 영역 */}
+              <div style={{
+                width:480, padding:32, overflowY:"auto",
+                display:"flex", flexDirection:"column", gap:16,
+              }}>
+                {/* 안내 문구 + 빨간 사선 표시 */}
+                <div style={{position:"relative", marginBottom:8}}>
+                  <p style={{...F.body2, color:C.dark}}>배경 지식을 읽으며, 제시된 어휘의 뜻을 추측해 보세요.</p>
+                  {/* 빨간 사선 (오답 표시) */}
+                  <svg style={{position:"absolute",top:-4,left:-4,pointerEvents:"none"}} width={180} height={50}>
+                    <line x1="0" y1="40" x2="120" y2="0" stroke="#e53935" strokeWidth={2.5}/>
+                  </svg>
                 </div>
-                <div style={{ ...F.overline, color:C.grey6, marginBottom:4 }}>제출 답안 (채점 없이 표시)</div>
-                <div style={{ padding:"8px 10px", borderRadius:6, background:C.grey1, ...F.caption, color:C.grey8 }}>
-                  "She goes to the park on weekends with her family and enjoys outdoor activities."
+
+                {/* 어휘 매칭 문제 */}
+                {[
+                  {word:"usually",    meaning:"대개, 보통",      correct:true },
+                  {word:"interesting",meaning:"느린",            correct:false},
+                  {word:"slow",       meaning:"흥미로운, 재미있는",correct:false},
+                  {word:"sleepy",     meaning:"졸린",            correct:true },
+                ].map((item,i)=>(
+                  <div key={i} style={{display:"flex",alignItems:"center",gap:16}}>
+                    {/* 스피커 아이콘 */}
+                    <div style={{
+                      width:40,height:40,borderRadius:"50%",
+                      background:"#00ACC1",flexShrink:0,
+                      display:"flex",alignItems:"center",justifyContent:"center",
+                      color:"white",fontSize:16,
+                    }}>🔊</div>
+                    <span style={{...F.body2,color:C.dark,width:130,fontWeight:500}}>{item.word}</span>
+                    {/* 답안 버튼 */}
+                    <div style={{
+                      flex:1, height:52, border:`2px solid ${item.correct?"#4CAF50":"#EF5350"}`,
+                      borderRadius:6, display:"flex", alignItems:"center", justifyContent:"center",
+                      background:item.correct?"#F1F8E9":"#FFEBEE",
+                      ...F.body2, color:item.correct?"#388E3C":"#C62828", fontWeight:500,
+                    }}>{item.meaning}</div>
+                  </div>
+                ))}
+
+                {/* 보기 (dashed border) */}
+                <div style={{
+                  display:"grid", gridTemplateColumns:"1fr 1fr", gap:8, marginTop:8,
+                  borderTop:`1px solid ${C.grey2}`, paddingTop:16,
+                }}>
+                  {["느린","흥미로운, 재미있는","졸린","대개, 보통"].map((c,i)=>(
+                    <div key={i} style={{
+                      padding:"12px 14px", border:`1.5px dashed ${C.grey3}`,
+                      borderRadius:6, ...F.body2, color:C.grey8, background:C.white,
+                    }}>{c}</div>
+                  ))}
                 </div>
+              </div>
+
+              {/* 우측 스크롤바 */}
+              <div style={{
+                position:"absolute", right:6, top:40,
+                width:6, height:200, borderRadius:999, background:C.grey2,
+              }}/>
+            </div>}
+
+            {/* 페이지네이션 */}
+            <div style={{
+              display:"flex", alignItems:"center", justifyContent:"space-between",
+              padding:"16px 8px", flexShrink:0,
+            }}>
+              <button style={{
+                display:"flex", alignItems:"center", gap:4,
+                padding:"8px 16px", border:`1px solid ${C.grey8}`,
+                borderRadius:8, background:C.white,
+                ...F.caption, color:C.grey8, cursor:"pointer",
+              }}>‹ 이전</button>
+              <span style={{ ...F.sub1, color:C.dark }}>1 / {items.length}</span>
+              <button style={{
+                display:"flex", alignItems:"center", gap:4,
+                padding:"8px 16px", border:`1px solid ${C.grey8}`,
+                borderRadius:8, background:C.white,
+                ...F.caption, color:C.grey8, cursor:"pointer",
+              }}>다음 ›</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ─── 리포트 모달 (레슨결과서/수능모의평가/진단평가/총괄) ─────────────────────
+const ReportModal = ({ lesson, lessonType, onClose }) => {
+  const isBasic      = lessonType==="기본레슨";
+  const isReview     = lessonType==="복습레슨";
+  const isFoundation = lessonType==="기초평가";
+  const isSuneung    = lessonType==="수능모의평가";
+  const isFinal      = lessonType==="총괄평가";
+
+  // ── 공통 컴포넌트 ──────────────────────────────────────────────────────
+  const Ok = ({v}) => <span style={{color:v==="o"?"#22C55E":v==="t"?"#F59E0B":"#EF4444",fontWeight:700,fontSize:16}}>{v==="o"?"○":v==="t"?"△":"✗"}</span>;
+
+  const Tbl = ({heads, rows, widths}) => (
+    <table style={{width:"100%",borderCollapse:"collapse",border:`1px solid ${C.grey2}`,fontSize:14}}>
+      <thead>
+        <tr style={{background:C.grey1}}>
+          {heads.map((h,i) => (
+            <th key={i} style={{padding:"10px 12px",textAlign:"left",...F.caption,color:C.grey6,
+              borderBottom:`1px solid ${C.grey2}`,fontWeight:500,width:widths?widths[i]:undefined}}>{h}</th>
+          ))}
+        </tr>
+      </thead>
+      <tbody>
+        {rows.map((row,ri) => (
+          <tr key={ri} style={{borderBottom:`1px solid ${C.grey1}`}}>
+            {row.map((cell,ci) => (
+              <td key={ci} style={{padding:"10px 12px",...F.body2,color:C.dark,fontSize:14}}>{cell}</td>
+            ))}
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+
+  const SemiGauge = ({score, size=160}) => {
+    const r=size/2-14, circ=Math.PI*r;
+    const col=score>=80?C.green6:score>=60?C.orange6:C.red6;
+    const label=score>=80?"우수":score>=60?"보통":"부족";
+    return (
+      <div style={{position:"relative",width:size,height:size/2+36,flexShrink:0}}>
+        <svg width={size} height={size} style={{position:"absolute",top:0}}>
+          <path d={`M 14 ${size/2} A ${r} ${r} 0 0 1 ${size-14} ${size/2}`}
+            fill="none" stroke={C.grey2} strokeWidth={12} strokeLinecap="round"/>
+          <path d={`M 14 ${size/2} A ${r} ${r} 0 0 1 ${size-14} ${size/2}`}
+            fill="none" stroke={col} strokeWidth={12} strokeLinecap="round"
+            strokeDasharray={circ} strokeDashoffset={circ*(1-score/100)}/>
+        </svg>
+        <div style={{position:"absolute",bottom:0,width:"100%",textAlign:"center"}}>
+          <div style={{fontSize:26,fontWeight:700,color:col,lineHeight:1}}>{score}점</div>
+          <div style={{...F.caption,color:C.grey6,marginTop:2}}>{label}</div>
+        </div>
+      </div>
+    );
+  };
+
+  const BarChart = ({items, showReview=false}) => {
+    const max=100, h=120;
+    return (
+      <div style={{display:"flex",alignItems:"flex-end",gap:4,height:h+56,
+        padding:"16px 8px 8px",border:`1px solid ${C.grey2}`,borderRadius:4,background:C.white}}>
+        {items.map((item,i) => (
+          <div key={i} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:4,position:"relative"}}>
+            {showReview && item.review && (
+              <div style={{position:"absolute",top:-20,left:"50%",transform:"translateX(-50%)",
+                background:"#FFF3E0",border:`1px solid ${C.orange6}`,borderRadius:3,
+                padding:"1px 4px",whiteSpace:"nowrap"}}>
+                <span style={{...F.overline,fontSize:9,color:C.orange6}}>복습권장</span>
+              </div>
+            )}
+            <span style={{...F.overline,color:C.grey6,fontSize:10}}>{item.val}%</span>
+            <div style={{width:"80%",height:Math.max(3,item.val/max*h),
+              borderRadius:"3px 3px 0 0",
+              background:showReview&&item.review?C.orange6:C.lightBlue6}}/>
+            <span style={{...F.overline,color:C.grey5,textAlign:"center",
+              fontSize:10,lineHeight:1.3}}>{item.label}</span>
+          </div>
+        ))}
+      </div>
+    );
+  };
+
+  const SecTitle = ({title, time, showPlay=false}) => (
+    <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",
+      padding:"10px 16px",background:C.grey1,borderRadius:"6px 6px 0 0",
+      border:`1px solid ${C.grey2}`,borderBottom:"none",marginTop:20}}>
+      <span style={{...F.sub3,color:C.dark}}>{title}</span>
+      <div style={{display:"flex",alignItems:"center",gap:12}}>
+        {time && <span style={{...F.caption,color:C.grey5}}>⏱ 학습시간 {time}</span>}
+        {showPlay && (
+          <button style={{padding:"4px 12px",border:`1px solid ${C.lightBlue6}`,borderRadius:4,
+            ...F.caption,color:C.lightBlue6,background:C.white,cursor:"pointer"}}>
+            풀이 화면 ✏
+          </button>
+        )}
+      </div>
+    </div>
+  );
+
+  const SummaryBox = ({data}) => (
+    <div style={{border:`1px solid ${C.grey2}`,borderRadius:8,padding:24,marginTop:20,lineHeight:1.8}}>
+      <div style={{...F.h3,color:C.dark,marginBottom:16}}>총평</div>
+      {[
+        ["학습 요약",  data.학습요약,  C.lightBlue6],
+        ["강점 영역",  data.강점영역,  C.green6],
+        ["보완 필요 영역", data.보완필요, C.orange6],
+        ["학습 태도 및 변화", data.학습태도, C.grey8],
+        ["추천 학습",  null,           C.lightBlue6],
+        ["종합 의견",  data.종합의견,  C.grey8],
+      ].map(([lbl, txt, col], i) => (
+        <div key={i} style={{marginBottom:14,paddingBottom:14,
+          borderBottom:i<5?`1px solid ${C.grey1}`:"none"}}>
+          <div style={{...F.sub3,color:col,marginBottom:4}}>[{lbl}]</div>
+          {lbl==="추천 학습"
+            ? <ol style={{paddingLeft:20,margin:0}}>
+                {data.추천학습.map((item,j) => (
+                  <li key={j} style={{...F.body2,color:C.dark,marginBottom:2}}>{item}</li>
+                ))}
+              </ol>
+            : <p style={{...F.body2,color:C.dark,margin:0}}>{txt}</p>
+          }
+        </div>
+      ))}
+    </div>
+  );
+
+  // ── 데이터 ─────────────────────────────────────────────────────────────
+  // 기본 레슨
+  const basicParts = [
+    {label:"Warm-up",  correct:18,total:20,score:90},
+    {label:"Rules",    correct:15,total:20,score:75},
+    {label:"Practice", correct:16,total:20,score:80},
+    {label:"Builder",  correct:14,total:20,score:70},
+    {label:"Check",    correct:17,total:20,score:85},
+  ];
+  // Grammar Practice: 번호 / 어휘명(problem_name) / 채점  (캡처 이미지 기준)
+  const gpRows = [
+    ["1","(problem_name)",<Ok v="o"/>],
+    ["2","(problem_name)",<Ok v="t"/>],
+    ["3","(problem_name)",<Ok v="x"/>],
+    ["4","(problem_name)",<Ok v="o"/>],
+    ["5","(problem_name)",<Ok v="o"/>],
+    ["6","(problem_name)",<Ok v="o"/>],
+    ["7","(problem_name)",<Ok v="o"/>],
+    ["8","(problem_name)",<Ok v="t"/>],
+    ["9","(problem_name)",<Ok v="o"/>],
+    ["10","(problem_name)",<Ok v="o"/>],
+    ["11","(problem_name)",<Ok v="o"/>],
+    ["12","(problem_name)",<Ok v="o"/>],
+    ["13","(problem_name)",<Ok v="o"/>],
+    ["14","(problem_name)",<Ok v="o"/>],
+    ["15","(problem_name)",<Ok v="o"/>],
+    ["16","(problem_name)",<Ok v="o"/>],
+    ["17","(problem_name)",<Ok v="o"/>],
+    ["18","(problem_name)",<Ok v="o"/>],
+    ["19","(problem_name)",<Ok v="o"/>],
+    ["20","(problem_name)",<Ok v="o"/>],
+  ];
+  // Grammar Check: 번호 / 구분(grammar_type) / 문항명(problem_name) / 채점  (캡처 이미지 기준)
+  const gcRows = [
+    ["1","(grammar_type)","(problem_name)",<Ok v="o"/>],
+    ["2","(grammar_type)","(problem_name)",<Ok v="x"/>],
+    ["3","(grammar_type)","(problem_name)",<Ok v="o"/>],
+    ["4","(grammar_type)","(problem_name)",<Ok v="o"/>],
+    ["5","(grammar_type)","(problem_name)",<Ok v="o"/>],
+    ["6","(grammar_type)","(problem_name)",<Ok v="o"/>],
+    ["7","(grammar_type)","(problem_name)",<Ok v="t"/>],
+    ["8","(grammar_type)","(problem_name)",<Ok v="o"/>],
+    ["9","(grammar_type)","(problem_name)",<Ok v="o"/>],
+    ["10","(grammar_type)","(problem_name)",<Ok v="o"/>],
+    ["11","(grammar_type)","(problem_name)",<Ok v="o"/>],
+    ["12","(grammar_type)","(problem_name)",<Ok v="o"/>],
+    ["13","(grammar_type)","(problem_name)",<Ok v="o"/>],
+    ["14","(grammar_type)","(problem_name)",<Ok v="o"/>],
+  ];
+
+  // 복습 레슨
+  const reviewLessons = [
+    {name:"{lesson_name}",correct:17,total:20,score:85},
+    {name:"{lesson_name}",correct:15,total:20,score:75},
+    {name:"{lesson_name}",correct:16,total:20,score:80},
+  ];
+  const ptRows = [
+    ["#","(grammar_type)","(problem_name)","(Lesson_#)",<Ok v="o"/>],
+    ["#","(grammar_type)","(problem_name)","(Lesson_#)",<Ok v="x"/>],
+    ["#","(grammar_type)","(problem_name)","(Lesson_#)",<Ok v="o"/>],
+    ["#","(grammar_type)","(problem_name)","(Lesson_#)",<Ok v="o"/>],
+    ["#","(grammar_type)","(problem_name)","(Lesson_#)",<Ok v="o"/>],
+    ["#","(grammar_type)","(problem_name)","(Lesson_#)",<Ok v="t"/>],
+    ["#","(grammar_type)","(problem_name)","(Lesson_#)",<Ok v="o"/>],
+    ["#","(grammar_type)","(problem_name)","(Lesson_#)",<Ok v="o"/>],
+    ["#","(grammar_type)","(problem_name)","(Lesson_#)",<Ok v="x"/>],
+    ["#","(grammar_type)","(problem_name)","(Lesson_#)",<Ok v="o"/>],
+  ];
+  const reviewSummary = {
+    학습요약:"김동현 학생은 Starter Lesson 1~3 복습 단계의 형성 평가에서 90점을 획득하며 우수한 성취도를 보였습니다.",
+    강점영역:"주어·동사 일치, 의문문의 어순, 기본 시제 활용 등 핵심 문법 규칙을 정확하게 적용하는 능력이 뛰어납니다. Sentence Builder 활동과 서술형 문항에서 안정적인 수행을 보여, 활용 단계까지 도달했음을 알 수 있습니다.",
+    보완필요:"복수형 만들기 규칙 중 -s, -sh로 끝나는 단어 처리에서 부분적인 혼동이 있었습니다. AI 튜터의 추가 확인 학습을 통해 짧은 시간 안에 보완 가능한 수준입니다.",
+    학습태도:"각 레슨의 Practice 1-2-3 단계를 성실히 완료했고, 오답 재기회에서도 끝까지 풀어내며 개념을 다지는 모습을 보였습니다.",
+    추천학습:["복수형 규칙(-s, -sh, -ch, -x 등)을 다룬 Lesson 2 Grammar Rules 다시 보기","Grammar Detective 미해결 사건 재도전으로 약점 굳히기","Starter Lesson 4 Warm-up 단계로 다음 학습 이어가기"],
+    종합의견:"김동현 학생은 기초 문법 개념을 빠르게 흡수하고 응용하는 능력이 우수합니다. 현재의 학습 페이스를 유지하면서 보완 영역을 가볍게 점검한다면, 다음 단계 학습에서도 안정적인 성취가 기대됩니다.",
+  };
+
+  // 수능모의평가
+  const suneungSubjects = [
+    {label:"인문",val:28},{label:"과학·기술",val:50},
+    {label:"예술·스포츠",val:50},{label:"자연·환경",val:75},{label:"사회",val:0},
+  ];
+  const suneungTypes = [
+    {label:"중심 내용 파악",val:37,review:true},{label:"맥락 파악",val:66,review:false},
+    {label:"함축적 의미 추론",val:0,review:true},{label:"세부 정보 파악",val:40,review:true},
+    {label:"어휘",val:66,review:false},{label:"간접 쓰기",val:0,review:true},
+  ];
+  const suneungRows = [
+    ["1","중심 내용 파악","글의 목적 파악","하","3","1레벨 34레슨",<Ok v="x"/>,""],
+    ["2","중심 내용 파악","글의 요지 파악","하","3","1레벨 26레슨",<Ok v="o"/>,""],
+    ["3","중심 내용 파악","글의 목적 파악","하","3","1레벨 37레슨",<Ok v="x"/>,""],
+    ["4","맥락 파악","심경·분위기 파악","하","3","1레벨 27레슨",<Ok v="o"/>,""],
+    ["5","중심 내용 파악","글의 주장 파악","하","3","1레벨 33레슨",<Ok v="x"/>,""],
+    ["6","함축적 의미 추론","함축적 의미 파악","상","4","1레벨 45레슨",<Ok v="x"/>,""],
+    ["7","중심 내용 파악","글의 요지 파악","하","3","1레벨 40레슨",<Ok v="o"/>,""],
+    ["8","중심 내용 파악","글의 주제 파악","중","3","1레벨 30레슨",<Ok v="x"/>,""],
+    ["9","중심 내용 파악","글의 제목 파악","중","4","1레벨 36레슨",<Ok v="x"/>,""],
+    ["10","세부 정보 파악","내용 일치·불일치 파악","하","3","1레벨 29레슨",<Ok v="o"/>,""],
+  ];
+
+  // 진단평가
+  const diagAreas = [
+    {label:"어휘력",val:41},{label:"문장이해력",val:25},
+    {label:"독해력 I",val:40},{label:"독해력 II",val:0},
+  ];
+  const diagTypes = [
+    {label:"세부 정보 파악",val:50},{label:"맥락 파악",val:33},
+    {label:"어휘",val:0},{label:"간접 쓰기",val:0},
+    {label:"중심 내용 파악",val:0},{label:"함축적 의미 추론",val:0},
+  ];
+  const diagVocabRows = [
+    ["1","aisle","통로",<Ok v="o"/>,""],["2","patient","인내심 있는",<Ok v="x"/>,""],
+    ["3","comfort","위로하다",<Ok v="o"/>,""],["4","effect","효과",<Ok v="x"/>,""],
+    ["5","explore","탐험하다",<Ok v="x"/>,""],["6","show off","자랑하다",<Ok v="o"/>,""],
+    ["7","symptom","증상",<Ok v="o"/>,""],["8","confusing","혼란스러운",<Ok v="x"/>,""],
+    ["9","unfair","불공평한",<Ok v="x"/>,""],["10","spill","쏟다",<Ok v="x"/>,""],
+    ["11","cause","일으키다",<Ok v="x"/>,""],["12","behavior","행동",<Ok v="o"/>,""],
+  ];
+
+  // ── 헤더 정보 ────────────────────────────────────────────────────────
+  const headerItems = (isBasic||isReview)
+    ? (isReview
+        ? [["학생정보","김동현 ##########"],["분석범위","Starter Lesson 4"],["담당교사","김대교"],["발행일","2026.04.16"]]
+        : [["분석범위","Starter Lesson 3"],["담당교사","김대교"],["발행일","2026.04.19"]])
+    : isSuneung
+    ? [["진도","1레벨 2회차"],["발행일","2025.08.19"],["학생","김보연 중등2"],["ID","0054339814"]]
+    : isFoundation
+    ? [["응시일","2026.04.20"],["학생","곽규민 초등4"],["ID","0055915927"],["추천 SP","1레벨 1레슨"]]
+    : [["학생명","김민준"],["학년","중2"],["레벨","Starter"],["학습일","2026-05-14"]];
+
+  const modalTitle = (isBasic||isReview)
+    ? (isReview ? "레슨 분석 리포트 (맞춤 레슨)" : "레슨 분석 리포트")
+    : isSuneung ? "수능모의평가 분析리포트"
+    : isFoundation ? "진단평가 분析리포트"
+    : "총괄 평가 리포트";
+
+  return (
+    <Modal title={modalTitle} onClose={onClose} width={900}>
+      {/* 헤더 정보행 */}
+      <div style={{padding:"8px 24px",borderBottom:`1px solid ${C.grey2}`,
+        display:"flex",gap:24,flexWrap:"wrap"}}>
+        {headerItems.map(([lbl,val]) => (
+          <div key={lbl} style={{display:"flex",gap:6,alignItems:"baseline"}}>
+            <span style={{...F.caption,color:C.grey5}}>{lbl}</span>
+            <span style={{...F.sub3,color:C.dark}}>{val}</span>
+          </div>
+        ))}
+      </div>
+
+      <div style={{padding:24,overflowY:"auto",maxHeight:"78vh"}}>
+
+        {/* ── 기본 레슨 리포트 ──────────────────────────────────────── */}
+        {isBasic && (
+          <div>
+            <div style={{...F.h2,color:C.dark,marginBottom:16}}>전체 학습 결과 요약</div>
+            <div style={{display:"flex",gap:32,padding:20,border:`1px solid ${C.grey2}`,
+              borderRadius:8,marginBottom:24}}>
+              <div style={{flexShrink:0,textAlign:"center"}}>
+                <SemiGauge score={90} size={150}/>
+                <div style={{marginTop:6}}><Badge text="우수" variant="fill" color="green"/></div>
+              </div>
+              <div style={{flex:1}}>
+                <div style={{...F.sub3,color:C.dark,marginBottom:12}}>(Lesson_name)</div>
+                {basicParts.map((p,i) => (
+                  <div key={i} style={{display:"flex",alignItems:"center",gap:10,marginBottom:8}}>
+                    <span style={{...F.caption,color:C.dark,width:72,flexShrink:0}}>{p.label}</span>
+                    <div style={{flex:1,height:7,background:C.grey2,borderRadius:3,overflow:"hidden"}}>
+                      <div style={{width:`${p.score}%`,height:"100%",background:C.lightBlue6,borderRadius:3}}/>
+                    </div>
+                    <span style={{...F.caption,color:C.grey5,width:90,textAlign:"right",flexShrink:0}}>
+                      {p.correct} / {p.total} &nbsp;<strong style={{color:C.dark}}>{p.score}점</strong>
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div style={{...F.h2,color:C.dark,marginBottom:12}}>레슨 상세 결과</div>
+            <div style={{padding:16,background:C.grey1,borderRadius:8,
+              border:`1px solid ${C.grey2}`,marginBottom:0}}>
+              <div style={{...F.sub3,color:C.dark,marginBottom:8}}>학습설명</div>
+              <div style={{...F.body2,color:C.grey8,lineHeight:1.8}}>
+                <div>• 학습 주제: blah blah blah</div>
+                <div>• 학습 목적: blah blah blah</div>
+                <div style={{...F.caption,color:C.grey6,marginTop:4}}>학습 단계:</div>
+                <div style={{...F.caption,color:C.grey8,paddingLeft:12,lineHeight:1.8}}>
+                  <div>- blah blah blah</div>
+                  <div>- blah blah blah</div>
+                  <div>- blah blah blah</div>
+                </div>
+              </div>
+            </div>
+
+            <SecTitle title="Grammar Practice" time="mm분 ss초" showPlay={true}/>
+            <div style={{border:`1px solid ${C.grey2}`,borderRadius:"0 0 6px 6px",padding:"12px 16px"}}>
+              <div style={{...F.caption,color:C.grey5,marginBottom:8}}>
+                1회 시도 정답 <Ok v="o"/>&nbsp; 2회 시도 정답 <Ok v="t"/>&nbsp; 3회 시도 오답 <Ok v="x"/>
+              </div>
+              <Tbl heads={["번호","문항명","채점"]} rows={gpRows}
+                widths={["50px",undefined,"60px"]}/>
+            </div>
+
+            <SecTitle title="Grammar Check" time="mm분 ss초" showPlay={true}/>
+            <div style={{border:`1px solid ${C.grey2}`,borderRadius:"0 0 6px 6px",padding:"12px 16px"}}>
+              <div style={{...F.caption,color:C.grey5,marginBottom:8}}>
+                1회 시도 정답 <Ok v="o"/>&nbsp; 2회 시도 정답 <Ok v="t"/>&nbsp; 3회 시도 오답 <Ok v="x"/>
+              </div>
+              <Tbl heads={["번호","구분","문항명","채점"]} rows={gcRows}
+                widths={["50px","120px",undefined,"60px"]}/>
+            </div>
+
+            <SummaryBox data={{
+              학습요약:"김동현 학생은 Starter Lesson % 학습에서 90점을 획득하여 우수한 성취도를 보였습니다. Warm-up과 Grammar Check에서 높은 정답률을 달성했고, Practice의 어휘 퀴즈도 꼼꼼하게 진행하였습니다.",
+              강점영역:"주어·동사 일치, 의문문의 어순, 기본 시제 활용 등 핵심 문법 규칙을 정확하게 적용하는 능력이 뛰어납니다. Grammar Check 결과 반사적이거나 실수 없이 정확한 문법 판단이 이루어졌고, 시간도 빠르게 학습을 완수하였습니다.",
+              보완필요:"일부 어휘 항목에서 2~3회 시도가 필요한 경우가 있었습니다. 오답 문항은 마이노트의 오답노트에서 다시 한번 풀어보고, 동영상 강의를 다시 들으며 학습 전략을 재확인해 보세요.",
+              학습태도:"각 단계를 성실히 완료했고, 오답 재기회에서도 끝까지 풀어내며 개념을 다지는 모습을 보였습니다.",
+              추천학습:["Grammar Practice 오답 어휘 반복 학습하기","Grammar Check 오답 문항 동영상 강의 재시청","다음 레슨 Warm-up 단계로 학습 이어가기"],
+              종합의견:"김동현 학생은 기초 문법 개념을 빠르게 흡수하고 응용하는 능력이 우수합니다. 현재의 학습 페이스를 유지하면서 보완 영역을 가볍게 점검한다면, 다음 단계 학습에서도 안정적인 성취가 기대됩니다.",
+            }}/>
+          </div>
+        )}
+
+        {/* ── 복습 레슨 리포트 ──────────────────────────────────────── */}
+        {isReview && (
+          <div>
+            <div style={{...F.h2,color:C.dark,marginBottom:16}}>전체 학습 결과 요약</div>
+            <div style={{display:"flex",gap:32,padding:20,border:`1px solid ${C.grey2}`,
+              borderRadius:8,marginBottom:8}}>
+              <div style={{flexShrink:0,textAlign:"center"}}>
+                <SemiGauge score={90} size={150}/>
+                <div style={{marginTop:6}}><Badge text="우수" variant="fill" color="green"/></div>
+              </div>
+              <div style={{flex:1}}>
+                <div style={{...F.sub3,color:C.dark,marginBottom:12}}>Review : Lesson {"{1~3}"}</div>
+                {reviewLessons.map((p,i) => (
+                  <div key={i} style={{display:"flex",alignItems:"center",gap:10,marginBottom:8}}>
+                    <span style={{...F.caption,color:C.dark,flex:1}}>{p.name}</span>
+                    <div style={{width:160,height:7,background:C.grey2,borderRadius:3,overflow:"hidden",flexShrink:0}}>
+                      <div style={{width:`${p.score}%`,height:"100%",background:C.lightBlue6,borderRadius:3}}/>
+                    </div>
+                    <span style={{...F.caption,color:C.grey5,width:80,textAlign:"right",flexShrink:0}}>
+                      {p.correct} / {p.total} &nbsp;<strong style={{color:C.dark}}>{p.score}점</strong>
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div style={{...F.caption,color:C.grey5,marginBottom:24,paddingLeft:4}}>
+              • Progress Test의 형성 평가 코너 결과로 점수를 집계합니다.
+            </div>
+
+            <div style={{...F.h2,color:C.dark,marginBottom:16}}>레슨 학습 상세 결과</div>
+            <div style={{...F.sub3,color:C.dark,marginBottom:0}}>Progress Test</div>
+            <SecTitle title="형성 평가" time="mm분 ss초" showPlay={true}/>
+            <div style={{border:`1px solid ${C.grey2}`,borderRadius:"0 0 6px 6px",padding:"12px 16px"}}>
+              <Tbl heads={["번호","구분","문항명","관련 레슨","채점"]} rows={ptRows}
+                widths={["50px","110px",undefined,"110px","60px"]}/>
+            </div>
+            <SummaryBox data={reviewSummary}/>
+            <div style={{textAlign:"center",marginTop:24}}>
+              <button style={{padding:"12px 32px",border:`1px solid ${C.grey3}`,borderRadius:999,
+                ...F.body2,color:C.grey6,background:C.white,cursor:"pointer"}}>목록으로</button>
+            </div>
+          </div>
+        )}
+
+        {/* ── 수능모의평가 분析리포트 ───────────────────────────────── */}
+        {isSuneung && (
+          <div>
+            <div style={{display:"flex",gap:12,marginBottom:20}}>
+              {[["점수","34점 (11/30문항)"],["예상 등급","7등급"],["소요 시간","4분 7초 / 45분"]].map(([k,v]) => (
+                <div key={k} style={{flex:1,borderRadius:8,border:`1px solid ${C.grey2}`,
+                  padding:"14px 16px",textAlign:"center"}}>
+                  <div style={{...F.overline,color:C.grey5}}>{k}</div>
+                  <div style={{...F.h2,color:C.dark,marginTop:4}}>{v}</div>
+                </div>
+              ))}
+            </div>
+            <div style={{background:"#FFFDF5",border:`1px solid ${C.grey2}`,borderRadius:8,
+              padding:20,marginBottom:20,...F.body2,color:C.dark,lineHeight:1.8}}>
+              주어진 문제를 시간 안에 풀었습니다.<br/>
+              <span style={{color:C.orange6}}>과학·기술, 예술·스포츠, 자연·환경</span> 소재 지문 이해력이 보통 수준입니다.<br/>
+              <span style={{color:C.red6}}>인문, 사회</span> 소재 지문 이해력이 다소 부족합니다.
+            </div>
+            <div style={{marginBottom:20}}>
+              <div style={{...F.sub3,color:C.dark,marginBottom:10}}>지문 소재별 정답률</div>
+              <BarChart items={suneungSubjects}/>
+            </div>
+            <div style={{marginBottom:20}}>
+              <div style={{...F.sub3,color:C.dark,marginBottom:10}}>문항 유형별 정답률</div>
+              <BarChart items={suneungTypes} showReview={true}/>
+            </div>
+            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:8}}>
+              <span style={{...F.sub3,color:C.dark}}>문항별 풀이 결과</span>
+              <button style={{padding:"6px 16px",border:`1px solid ${C.lightBlue6}`,borderRadius:4,
+                ...F.caption,color:C.lightBlue6,background:C.white,cursor:"pointer"}}>풀이 화면 ✏</button>
+            </div>
+            <Tbl heads={["번호","문항 유형","유형 상세","난이도","배점","관련 레슨","채점","시간초과"]}
+              rows={suneungRows}
+              widths={["44px","130px",undefined,"60px","50px","110px","60px","70px"]}/>
+          </div>
+        )}
+
+        {/* ── 진단평가 분析리포트 ───────────────────────────────────── */}
+        {isFoundation && (
+          <div>
+            <div style={{background:C.lightBlue1,border:`1px solid ${C.lightBlue6}`,
+              borderRadius:8,padding:16,marginBottom:20,...F.body2,color:C.grey6}}>
+              본 평가는 Adaptive Test(적응형 시험)로 응시자 답변에 따라 다음 문항의 난이도가 조정되어 출제되었습니다.
+              곽규민님의 어휘력, 문장 이해력, 독해력 I, 독해력 II 4가지 영역의 성취율을 분석한 결과
+              <span style={{fontWeight:700,color:C.lightBlue6}}> 수능영어트레이닝 1레벨 1레슨</span>으로 학습을 시작하는 것을 권장합니다.
+            </div>
+            <div style={{marginBottom:20}}>
+              <div style={{...F.sub3,color:C.dark,marginBottom:10}}>결과 분析 — 4개 영역</div>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:16}}>
+                {diagAreas.map((a,i) => (
+                  <div key={i} style={{padding:14,borderRadius:8,
+                    border:`1px solid ${a.val<50?C.orange6:C.grey2}`,
+                    background:a.val<50?"#FFF8E1":C.white}}>
+                    <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}>
+                      <span style={{...F.sub3,color:C.dark}}>{a.label}</span>
+                      <span style={{...F.h3,color:a.val>=60?C.green6:a.val>=30?C.orange6:C.red6}}>{a.val}%</span>
+                    </div>
+                    <div style={{height:6,background:C.grey2,borderRadius:3}}>
+                      <div style={{width:`${a.val}%`,height:"100%",borderRadius:3,
+                        background:a.val>=60?C.green6:a.val>=30?C.orange6:C.red6}}/>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div style={{marginBottom:20}}>
+              <div style={{...F.sub3,color:C.dark,marginBottom:10}}>독해 유형별 정답률</div>
+              <BarChart items={diagTypes}/>
+            </div>
+            <div style={{...F.sub3,color:C.dark,marginBottom:8}}>문항별 풀이 결과 — 어휘력</div>
+            <Tbl heads={["번호","어휘","뜻","채점","시간초과"]} rows={diagVocabRows}
+              widths={["50px","140px",undefined,"70px","70px"]}/>
+          </div>
+        )}
+
+        {/* ── 총괄평가 ─────────────────────────────────────────────── */}
+        {isFinal && (
+          <div>
+            <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:48,marginBottom:24}}>
+              <SemiGauge score={83} size={150}/>
+              <div>
+                {[{l:"어휘력",v:80},{l:"문장이해력",v:75},{l:"독해력 I",v:78},{l:"독해력 II",v:83}].map((p,i) => (
+                  <div key={i} style={{display:"flex",alignItems:"center",gap:10,marginBottom:8}}>
+                    <span style={{...F.caption,color:C.grey8,width:100}}>{p.l}</span>
+                    <div style={{width:160,height:7,background:C.grey2,borderRadius:3}}>
+                      <div style={{width:`${p.v}%`,height:"100%",borderRadius:3,
+                        background:p.v>=80?C.green6:C.orange6}}/>
+                    </div>
+                    <span style={{...F.sub3,color:C.dark,width:36,textAlign:"right"}}>{p.v}%</span>
+                  </div>
+                ))}
               </div>
             </div>
           </div>
         )}
 
-        {/* 총평 */}
-        <div style={{ background:C.grey1, borderRadius:8, padding:16, border:`1px solid ${C.grey2}` }}>
-          <div style={{ ...F.sub3, color:C.dark, marginBottom:8 }}>📝 총평</div>
-          <p style={{ ...F.body2, color:C.grey8, lineHeight:1.6, margin:0 }}>
-            {score>=80
-              ? "전반적으로 우수한 학습 결과를 보였습니다. Grammar Check 영역에서 높은 성취도를 기록했으며, 현재 페이스를 유지하며 다음 레슨으로 진행하세요."
-              : "일부 영역에서 보충 학습이 필요합니다. 정답률이 낮은 영역을 중심으로 복습 학습을 진행하는 것을 권장합니다."}
-          </p>
-        </div>
       </div>
     </Modal>
   );
 };
 
-// ─── 코칭카드 모달 (기본 레슨: Grammar Check / 복습: AI 튜터) ────────────
+
+// ─── 코칭카드 모달 (복습 레슨 전용: AI 튜터 대화 내역) ──────────────────
+// REQ_ILMS_GF_11 삭제: 기본 레슨 코칭카드 불필요 확인으로 제외
+// REQ_ILMS_GF_12 유지: 복습 레슨 Progress Test AI 튜터 대화 내역 + 유사문제
 const CoachingModal = ({ lesson, lessonType, onClose }) => {
-  const isBasic = lessonType==="기본";
+  const isBasic = lessonType==="기본레슨"; // 기본 레슨은 코칭 없음 (REQ_ILMS_GF_11 삭제)
   const grammarCheckItems = [
     { no:1, sentence:"She _____ to school every day.", answer:"goes", correct:true,  point:"3인칭 단수 현재형 → goes" },
     { no:2, sentence:"We _____ best friends.",          answer:"am",   correct:false, point:"복수 주어 → are", right:"are" },
@@ -755,149 +1369,343 @@ const StudentDetail = ({ student, onBack }) => {
   const [tab, setTab] = useState("history");
   const [modal, setModal] = useState(null);
 
+  // 학습 상태 뱃지 (4종)
+  const LessonStatusBadge = ({ status }) => {
+    const cfg =
+      status==="학습완료" ? { label:"학습 완료", bg:"#E8F5E9",    border:"#4CAF50",    color:"#4CAF50"    } :
+      status==="학습중"   ? { label:"학습 중",   bg:C.lightBlue6, border:C.lightBlue6, color:C.white      } :
+      status==="미완료"   ? { label:"미완료",    bg:"#FFECEB",    border:C.red6,       color:C.red6       } :
+      status==="학습중단" ? { label:"학습 중단", bg:C.grey2,      border:C.grey3,      color:C.grey6      } :
+                           { label:"학습 대기", bg:"#FFF3E0",    border:C.orange6,    color:C.orange6    };
+    const isFill = status==="학습중";
+    return (
+      <span style={{
+        display:"inline-block", padding:"2px 8px", borderRadius:999,
+        background:cfg.bg, border:`1px solid ${cfg.border}`,
+        ...F.overline, color:cfg.color, whiteSpace:"nowrap",
+      }}>{cfg.label}</span>
+    );
+  };
+
+  // 학습 결과 버튼
+  const ResultBtn = ({ score, lesson, lessonType }) => {
+    if (!score) {
+      return (
+        <div style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:4,
+          padding:"6px 12px", borderRadius:6, background:C.grey1, ...F.caption, color:C.grey5 }}>
+          <span>-</span>
+          <span style={{ fontSize:10, color:C.grey4 }}>›</span>
+        </div>
+      );
+    }
+    const color = score < 60 ? C.red6 : C.dark;
+    return (
+      <button onClick={()=>setModal({ type:"report", lesson, lessonType })}
+        style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:4,
+          padding:"6px 12px", borderRadius:6, background:C.white, border:`1px solid ${C.grey5}`,
+          ...F.caption, color, cursor:"pointer", width:"100%" }}>
+        <span>{score}%</span>
+        <span style={{ fontSize:10 }}>›</span>
+      </button>
+    );
+  };
+
   return (
     <div style={{ flex:1, overflowY:"auto" }}>
       <Header/>
-      <div style={{ padding:"24px 40px" }}>
-        {/* 브레드크럼 */}
-        <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:16 }}>
-          <button onClick={onBack} style={{ border:"none", background:"none", cursor:"pointer", ...F.body2, color:C.grey6 }}>← 학생관리</button>
-          <span style={{ color:C.grey4 }}>/</span>
-          <span style={{ ...F.body2, color:C.dark, fontWeight:700 }}>{student.name}</span>
+      <div style={{ paddingLeft:180 }}>
+        {/* 돌아가기 버튼 */}
+        <button onClick={onBack} style={{
+          display:"flex", alignItems:"center", gap:4, border:"none", background:"none",
+          cursor:"pointer", padding:"24px 0 0 40px", ...F.caption, color:C.grey8, textDecoration:"underline",
+        }}>← 돌아가기</button>
+
+        {/* 학생/과목 드롭다운 */}
+        <div style={{ display:"flex", gap:12, padding:"12px 0 24px 40px" }}>
+          {[student.name, "GrammarFit"].map((label,i)=>(
+            <div key={i} style={{
+              display:"flex", alignItems:"center", justifyContent:"space-between",
+              width:360, height:64, padding:"0 24px", background:C.white, borderRadius:999,
+              boxShadow:"0 4px 4px rgba(29,29,29,0.08)", gap:12, cursor:"pointer",
+            }}>
+              <span style={{ ...F.sub1, color:C.dark }}>{label}</span>
+              {student.studentType && i===1 && (
+                <span style={{ padding:"2px 8px", borderRadius:999,
+                  background:student.studentType==="신입"?C.orange1:C.lightBlue1,
+                  border:`1px solid ${student.studentType==="신입"?C.orange6:C.lightBlue6}`,
+                  ...F.overline, color:student.studentType==="신입"?C.orange6:C.lightBlue6,
+                }}>{student.studentType}</span>
+              )}
+              <span style={{ color:C.grey5, fontSize:16 }}>⌄</span>
+            </div>
+          ))}
         </div>
 
         {/* 학생 정보 카드 */}
-        <div style={{ background:C.white, borderRadius:8, padding:20, marginBottom:20, display:"flex", alignItems:"center", gap:20, border:`1px solid ${C.grey2}` }}>
-          <div style={{ width:48, height:48, borderRadius:"50%", background:C.lightBlue1, display:"flex", alignItems:"center", justifyContent:"center", ...F.h2, color:C.lightBlue6 }}>{student.name[0]}</div>
-          <div style={{ flex:1 }}>
-            <div style={{ ...F.h2, color:C.dark, marginBottom:4 }}>{student.name}</div>
-            <div style={{ display:"flex", gap:16, ...F.body2, color:C.grey8 }}>
-              <span>학년: {student.grade}</span>
-              <span>과목: <Badge text="GrammarFit" variant="fill" color="blue"/></span>
-              <span>레벨: Starter</span>
-              <span>현재 진도: {student.lesson}</span>
-            </div>
+        <div style={{ margin:"0 40px 0 40px", background:C.white, borderRadius:8, padding:24,
+          border:`1px solid ${C.grey2}`, display:"flex", alignItems:"center", justifyContent:"space-between", width:1181, boxSizing:"border-box" }}>
+          <div style={{ display:"flex", gap:32 }}>
+            {[["학년", student.grade], ["레벨", "Starter"], ["현재 진도", student.lesson]].map(([k,v])=>(
+              <div key={k}>
+                <div style={{ ...F.overline, color:C.grey5, marginBottom:4 }}>{k}</div>
+                <div style={{ ...F.sub1, color:C.dark }}>{v}</div>
+              </div>
+            ))}
           </div>
-          <div style={{ textAlign:"right" }}>
-            <div style={{ ...F.overline, color:C.grey5 }}>최근 점수</div>
-            <div style={{ ...F.h1, color:C.green6 }}>{student.score}점</div>
+          <div style={{ display:"flex", gap:16 }}>
+            <button style={{ width:132, height:40, borderRadius:999, background:"transparent",
+              border:`1px solid ${C.lightBlue6}`, ...F.body2, color:C.lightBlue6, cursor:"pointer" }}>출석 현황</button>
+            <button style={{ width:132, height:40, borderRadius:999, background:C.lightBlue6,
+              border:`1px solid ${C.lightBlue6}`, ...F.body2, color:C.white, cursor:"pointer" }}>진도 수정</button>
           </div>
         </div>
 
-        {/* 탭 — 지식맵 추가 */}
-        <div style={{ display:"flex", borderBottom:`1px solid ${C.grey2}`, marginBottom:20 }}>
-          {[["history","학습이력"],["analysis","학습분석"],["progress","전체 진도"],["knowledgemap","지식맵"]].map(([id,label])=>(
+        {/* 탭 (4개 — 지식맵 조건부 포함, REQ_ILMS_GF_19) */}
+        <div style={{ display:"flex", padding:"24px 0 0 40px", borderBottom:`1px solid ${C.grey2}` }}>
+          {[
+            ["history","학습이력",null],
+            ["analysis","학습 분석",null],
+            ["progress","전체 진도",null],
+            ["knowledgemap","지식맵","조건부"],
+          ].map(([id,label,badge])=>(
             <button key={id} onClick={()=>setTab(id)} style={{
-              padding:"12px 20px", border:"none", background:"none", cursor:"pointer",
-              ...F.h3, color:tab===id?C.lightBlue6:C.grey8, fontWeight:tab===id?700:500,
-              borderBottom:tab===id?`2px solid ${C.lightBlue6}`:"2px solid transparent", marginBottom:-1,
+              padding:"16px", border:"none", background:"none", cursor:"pointer",
+              ...F.h3, color:tab===id?C.lightBlue6:C.grey8,
+              borderBottom:tab===id?`3px solid ${C.lightBlue6}`:"3px solid transparent", marginBottom:-1,
+              display:"flex", alignItems:"center", gap:6,
             }}>
               {label}
-              {id==="knowledgemap" && <span style={{ marginLeft:6 }}><Badge text="신규" variant="fill" color="blue"/></span>}
+              {badge && <Badge text={badge} variant="fill" color="yellow"/>}
             </button>
           ))}
         </div>
 
-        {/* 학습이력 탭 */}
-        {tab==="history" && (
-          <div style={{ background:C.white, borderRadius:8, border:`1px solid ${C.grey2}`, overflow:"hidden" }}>
-            <div style={{ padding:"12px 16px", borderBottom:`1px solid ${C.grey2}`, display:"flex", gap:8 }}>
-              {["전체 유형","기본","복습","기초평가","총괄평가"].map((opt,i)=>(
-                <button key={i} style={{ padding:"4px 12px", border:`1px solid ${i===0?C.lightBlue6:C.grey3}`, borderRadius:999, ...F.caption, color:i===0?C.lightBlue6:C.grey6, background:i===0?C.lightBlue1:C.white, cursor:"pointer" }}>{opt}</button>
-              ))}
-            </div>
-            <table style={{ width:"100%", borderCollapse:"collapse" }}>
-              <thead>
-                <tr style={{ background:C.grey1 }}>
-                  {["레슨","유형","학습일","점수","상태",""].map((h,i)=>(
-                    <th key={i} style={{ padding:"12px 16px", textAlign:"left", ...F.caption, color:C.grey6, borderBottom:`1px solid ${C.grey2}`, fontWeight:500 }}>{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {HISTORY.map(l=>(
-                  <tr key={l.id} style={{ borderBottom:`1px solid ${C.grey1}` }}>
-                    <td style={{ padding:"14px 16px", ...F.sub3, color:C.dark }}>{l.lesson}</td>
-                    <td style={{ padding:"14px 16px" }}>
-                      <Badge text={l.type} variant="fill" color={l.type==="기초평가"||l.type==="총괄평가"?"orange":l.type==="복습"?"green":"blue"}/>
-                    </td>
-                    <td style={{ padding:"14px 16px", ...F.caption, color:C.grey5 }}>{l.date}</td>
-                    <td style={{ padding:"14px 16px", ...F.sub3, color:l.score>=80?C.green6:l.score>=60?C.orange6:C.red6 }}>{l.score}점</td>
-                    <td style={{ padding:"14px 16px" }}><Badge text="완료" variant="fill" color="green"/></td>
-                    <td style={{ padding:"14px 16px" }}>
-                      <div style={{ display:"flex", gap:6 }}>
-                        <button onClick={()=>setModal({ type:"play", lesson:l.lesson, lessonType:l.type })} style={{ padding:"4px 10px", border:`1px solid ${C.grey3}`, borderRadius:4, ...F.caption, color:C.grey6, background:C.white, cursor:"pointer" }}>풀이</button>
-                        <button onClick={()=>setModal({ type:"report", lesson:l.lesson, lessonType:l.type })} style={{ padding:"4px 10px", border:`1px solid ${C.lightBlue6}`, borderRadius:4, ...F.caption, color:C.lightBlue6, background:C.lightBlue1, cursor:"pointer" }}>학습결과</button>
-                        {l.coaching && (l.type==="기본"||l.type==="복습") && (
-                          <button onClick={()=>setModal({ type:"coaching", lesson:l.lesson, lessonType:l.type })} style={{ padding:"4px 10px", border:`1px solid ${C.green6}`, borderRadius:4, ...F.caption, color:C.green6, background:C.green1, cursor:"pointer" }}>코칭카드</button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+        {/* 탭 콘텐츠 */}
+        <div style={{ padding:"40px", background:C.white, width:1260, boxSizing:"border-box" }}>
 
-        {/* 학습분석 탭 */}
-        {tab==="analysis" && (
-          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:16 }}>
-            <div style={{ background:C.white, borderRadius:8, border:`1px solid ${C.grey2}`, padding:20 }}>
-              <div style={{ ...F.sub3, color:C.dark, marginBottom:16 }}>6개월 성취도 추이</div>
-              <div style={{ display:"flex", alignItems:"flex-end", gap:6, height:100 }}>
-                {[65,70,72,78,80,85].map((v,i)=>(
-                  <div key={i} style={{ flex:1, display:"flex", flexDirection:"column", alignItems:"center", gap:4 }}>
-                    <span style={{ ...F.overline, color:C.grey6 }}>{v}</span>
-                    <div style={{ width:"100%", height:`${v*0.8}px`, borderRadius:"4px 4px 0 0", background:i===5?C.lightBlue6:C.lightBlue1 }}/>
-                    <span style={{ ...F.overline, color:C.grey5 }}>{["12","1","2","3","4","5"][i]}월</span>
+          {/* ── 학습이력 탭 ── */}
+          {tab==="history" && (
+            <div>
+              {/* 필터 영역 — 피그마 기준: 드롭다운 3개 + 초기화 + 리포트 인쇄 버튼 */}
+              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:20 }}>
+                <div style={{ display:"flex", gap:8, alignItems:"center" }}>
+                  <select style={{ height:48, padding:"0 16px", border:`1px solid ${C.grey3}`, borderRadius:8, ...F.body2, color:C.dark, cursor:"pointer", minWidth:160 }}>
+                    <option>레벨/과정 선택</option>
+                    <option>Starter</option>
+                  </select>
+                  <select style={{ height:48, padding:"0 16px", border:`1px solid ${C.grey3}`, borderRadius:8, ...F.body2, color:C.dark, cursor:"pointer", minWidth:120 }}>
+                    <option>레슨</option>
+                    <option>기본레슨</option>
+                    <option>복습레슨</option>
+                    <option>기초평가</option>
+                    <option>총괄평가</option>
+                    <option>수능모의평가</option>
+                  </select>
+                  <select style={{ height:48, padding:"0 16px", border:`1px solid ${C.grey3}`, borderRadius:8, ...F.body2, color:C.dark, cursor:"pointer", minWidth:148 }}>
+                    <option>학습상태 선택</option>
+                    <option>학습완료</option>
+                    <option>학습중</option>
+                    <option>미완료</option>
+                    <option>학습대기</option>
+                    <option>학습중단</option>
+                  </select>
+                  <button style={{ height:48, padding:"0 16px", border:`1px solid ${C.grey3}`, borderRadius:8, background:C.white, ...F.body2, color:C.grey6, cursor:"pointer", display:"flex", alignItems:"center", gap:4 }}>
+                    🔄 초기화
+                  </button>
+                </div>
+                {/* 피그마 원본: "리포트 인쇄" 버튼 (내보내기 아님) */}
+                <button style={{
+                  display:"flex", alignItems:"center", gap:6, height:40, padding:"0 16px",
+                  border:`1px solid ${C.grey3}`, borderRadius:999, background:C.white,
+                  ...F.caption, color:C.dark, cursor:"pointer",
+                }}>🖨 리포트 인쇄</button>
+              </div>
+
+              {/* 테이블 */}
+              <table style={{ width:"100%", borderCollapse:"collapse", tableLayout:"fixed" }}>
+                <colgroup>
+                  <col style={{ width:"9%" }}/>
+                  <col style={{ width:"13%" }}/>
+                  <col/>
+                  <col style={{ width:"10%" }}/>
+                  <col style={{ width:"10%" }}/>
+                  <col style={{ width:110 }}/>
+                  <col style={{ width:192 }}/>
+                  <col style={{ width:130 }}/>
+                </colgroup>
+                <thead>
+                  <tr style={{ background:C.grey1 }}>
+                    {[
+                      { label:"구분",    sort:false },
+                      { label:"진도",    sort:true  },
+                      { label:"내용",    sort:false },
+                      { label:"학습일",  sort:true  },
+                      { label:"학습 상태", sort:false },
+                      { label:"학습 결과", sort:false },
+                      { label:"풀이",    sort:false },
+                      { label:"코칭",    sort:false },
+                    ].map(({ label, sort })=>(
+                      <th key={label} style={{
+                        padding:"12px 16px", textAlign:"left",
+                        ...F.sub3, color:C.dark, borderBottom:`1px solid ${C.grey2}`,
+                      }}>
+                        <span style={{ display:"inline-flex", alignItems:"center", gap:4 }}>
+                          {label}
+                          {sort && <span style={{ color:C.grey4, fontSize:12 }}>↕</span>}
+                        </span>
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {HISTORY.map(l=>{
+                    const scoreColor = l.resultScore < 60 ? C.red6 : C.dark;
+                    return (
+                      <tr key={l.id} style={{ borderBottom:`1px solid ${C.grey2}` }}>
+                        {/* 구분 */}
+                        <td style={{ padding:"14px 16px", ...F.body2, color:C.dark }}>{l.category}</td>
+
+                        {/* 진도: 레벨+레슨 + 리셋 뱃지 */}
+                        <td style={{ padding:"14px 16px" }}>
+                          <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+                            <span style={{ ...F.body2, color:C.dark }}>{l.progress}</span>
+                            {l.resetCount > 0 && (
+                              <span style={{ padding:"1px 6px", borderRadius:4,
+                                background:"transparent", border:`1px solid #8154D4`,
+                                ...F.overline, color:"#8154D4", fontSize:11 }}>리셋</span>
+                            )}
+                          </div>
+                        </td>
+
+                        {/* 내용 */}
+                        <td style={{ padding:"14px 16px", ...F.body2, color:C.dark }}>{l.content}</td>
+
+                        {/* 학습일 */}
+                        <td style={{ padding:"14px 16px", ...F.body2, color:l.date==="-"?C.grey4:C.dark }}>{l.date}</td>
+
+                        {/* 학습 상태 */}
+                        <td style={{ padding:"14px 16px" }}><LessonStatusBadge status={l.lessonStatus}/></td>
+
+                        {/* 학습 결과 */}
+                        <td style={{ padding:"8px 16px" }}>
+                          <ResultBtn score={l.resultScore} lesson={l.progress} lessonType={l.category}/>
+                        </td>
+
+                        {/* 풀이 버튼 + 리셋 버튼 (Figma 16639-90987 기준) */}
+                        <td style={{ padding:"8px 16px" }}>
+                          {(l.category==="기본레슨"||l.category==="복습레슨"||l.category==="수능모의평가") && l.lessonStatus!=="학습대기" ? (
+                            <div style={{display:"flex",alignItems:"center",gap:4}}>
+                              {/* 풀이 버튼: #045F84 border */}
+                              <button onClick={()=>setModal({type:"play",lesson:l.progress,lessonType:l.category})}
+                                style={{display:"flex",alignItems:"center",gap:4,padding:"6px 12px",
+                                  borderRadius:8,background:C.white,border:"1px solid #045F84",
+                                  ...F.caption,color:"#045F84",cursor:"pointer",whiteSpace:"nowrap"}}>
+                                풀이 ✏
+                              </button>
+                              {/* 리셋 N 버튼: #6A747C border/text — resetCount 있을 때만 노출 */}
+                              <button
+                                style={{display:"flex",alignItems:"center",gap:2,padding:"6px 12px",
+                                  borderRadius:8,background:C.white,border:"1px solid #6A747C",
+                                  ...F.caption,color:"#6A747C",cursor:"pointer",whiteSpace:"nowrap"}}>
+                                리셋 {l.resetCount}
+                              </button>
+                            </div>
+                          ) : <span style={{...F.caption,color:C.grey4}}>-</span>}
+                        </td>
+
+                        {/* 코칭 컬럼
+                           - null: 기본레슨·평가류 (REQ_ILMS_GF_11 삭제 — 기본 레슨 코칭카드 없음)
+                           - review_ai: 복습레슨 AI 튜터 (REQ_ILMS_GF_12 유지) */}
+                        <td style={{ padding:"8px 16px" }}>
+                          {l.coachingType===null ? (
+                            <span style={{ ...F.caption, color:C.grey4 }}>-</span>
+                          ) : (
+                            <button onClick={()=>setModal({ type:"coaching", lesson:l.progress, lessonType:l.category })}
+                              style={{ display:"flex", alignItems:"center", gap:4, padding:"6px 12px",
+                                borderRadius:8, background:C.white, border:"1px solid #045F84",
+                                ...F.caption, color:"#045F84", cursor:"pointer" }}>
+                              코칭카드
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+
+              {/* 페이지네이션 */}
+              <div style={{ display:"flex", justifyContent:"center", gap:4, marginTop:24 }}>
+                {[1,2,3].map(p=>(
+                  <button key={p} style={{
+                    width:36, height:36, borderRadius:999, border:`1px solid ${p===1?C.lightBlue6:C.grey3}`,
+                    background:p===1?C.lightBlue1:C.white, ...F.body2, color:p===1?C.lightBlue6:C.grey6, cursor:"pointer",
+                  }}>{p}</button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* ── 학습 분석 탭 ── */}
+          {tab==="analysis" && (
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:16 }}>
+              <div style={{ background:C.white, borderRadius:8, border:`1px solid ${C.grey2}`, padding:20 }}>
+                <div style={{ ...F.sub3, color:C.dark, marginBottom:16 }}>6개월 성취도 추이</div>
+                <div style={{ display:"flex", alignItems:"flex-end", gap:6, height:100 }}>
+                  {[65,70,72,78,80,85].map((v,i)=>(
+                    <div key={i} style={{ flex:1, display:"flex", flexDirection:"column", alignItems:"center", gap:4 }}>
+                      <span style={{ ...F.overline, color:C.grey6 }}>{v}</span>
+                      <div style={{ width:"100%", height:`${v*0.8}px`, borderRadius:"4px 4px 0 0", background:i===5?C.lightBlue6:C.lightBlue1 }}/>
+                      <span style={{ ...F.overline, color:C.grey5 }}>{["12","1","2","3","4","5"][i]}월</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div style={{ background:C.white, borderRadius:8, border:`1px solid ${C.grey2}`, padding:20 }}>
+                <div style={{ ...F.sub3, color:C.dark, marginBottom:12 }}>학습 통계</div>
+                {[["평균 성취도","80점"],["총 학습 레슨","24개"],["총 풀이 문항","240문항"],["총 학습일","18일"],["누적 학습시간","12시간 30분"]].map(([k,v])=>(
+                  <div key={k} style={{ display:"flex", justifyContent:"space-between", padding:"10px 0", borderBottom:`1px solid ${C.grey1}` }}>
+                    <span style={{ ...F.body2, color:C.grey6 }}>{k}</span>
+                    <span style={{ ...F.sub3, color:C.dark }}>{v}</span>
                   </div>
                 ))}
               </div>
             </div>
-            <div style={{ background:C.white, borderRadius:8, border:`1px solid ${C.grey2}`, padding:20 }}>
-              <div style={{ ...F.sub3, color:C.dark, marginBottom:12 }}>학습 통계</div>
-              {[["평균 성취도","80점"],["총 학습 레슨","24개"],["총 풀이 문항","240문항"],["총 학습일","18일"],["누적 학습시간","12시간 30분"]].map(([k,v])=>(
-                <div key={k} style={{ display:"flex", justifyContent:"space-between", padding:"10px 0", borderBottom:`1px solid ${C.grey1}` }}>
-                  <span style={{ ...F.body2, color:C.grey6 }}>{k}</span>
-                  <span style={{ ...F.sub3, color:C.dark }}>{v}</span>
+          )}
+
+          {/* ── 전체 진도 탭 ── */}
+          {tab==="progress" && (
+            <div style={{ background:C.white, borderRadius:8, border:`1px solid ${C.grey2}`, padding:24 }}>
+              <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:20 }}>
+                <div>
+                  <div style={{ ...F.h2, color:C.dark }}>Starter 레벨</div>
+                  <div style={{ ...F.caption, color:C.grey5 }}>Lesson 1~48 / 기초평가(1회) / 총괄평가(2회)</div>
                 </div>
-              ))}
+                <Badge text="진행중" variant="fill" color="blue"/>
+              </div>
+              <div style={{ marginBottom:16 }}>
+                <div style={{ display:"flex", justifyContent:"space-between", marginBottom:6 }}>
+                  <span style={{ ...F.body2, color:C.grey6 }}>전체 진도율</span>
+                  <span style={{ ...F.sub3, color:C.lightBlue6 }}>50%</span>
+                </div>
+                <div style={{ height:8, background:C.grey2, borderRadius:4, overflow:"hidden" }}>
+                  <div style={{ width:"50%", height:"100%", background:C.lightBlue6, borderRadius:4 }}/>
+                </div>
+              </div>
+              <div style={{ display:"grid", gridTemplateColumns:"repeat(10,1fr)", gap:4 }}>
+                {Array.from({length:51},(_,i)=>{
+                  const label=i<48?`L${i+1}`:i===48?"기초":i===49?"총1":"총2";
+                  const done=i<24;
+                  return <div key={i} style={{ padding:"4px 2px", borderRadius:4, textAlign:"center", background:done?C.lightBlue1:C.grey1, border:`1px solid ${done?C.lightBlue6:C.grey2}`, ...F.overline, color:done?C.lightBlue6:C.grey4 }}>{label}</div>;
+                })}
+              </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {/* 전체 진도 탭 */}
-        {tab==="progress" && (
-          <div style={{ background:C.white, borderRadius:8, border:`1px solid ${C.grey2}`, padding:24 }}>
-            <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:20 }}>
-              <div>
-                <div style={{ ...F.h2, color:C.dark }}>Starter 레벨</div>
-                <div style={{ ...F.caption, color:C.grey5 }}>Lesson 1~48 / 기초평가(1회) / 총괄평가(2회)</div>
-              </div>
-              <Badge text="진행중" variant="fill" color="blue"/>
-            </div>
-            <div style={{ marginBottom:16 }}>
-              <div style={{ display:"flex", justifyContent:"space-between", marginBottom:6 }}>
-                <span style={{ ...F.body2, color:C.grey6 }}>전체 진도율</span>
-                <span style={{ ...F.sub3, color:C.lightBlue6 }}>50%</span>
-              </div>
-              <div style={{ height:8, background:C.grey2, borderRadius:4, overflow:"hidden" }}>
-                <div style={{ width:"50%", height:"100%", background:C.lightBlue6, borderRadius:4 }}/>
-              </div>
-            </div>
-            <div style={{ display:"grid", gridTemplateColumns:"repeat(10,1fr)", gap:4 }}>
-              {Array.from({length:51},(_,i)=>{
-                const label=i<48?`L${i+1}`:i===48?"기초":i===49?"총1":"총2";
-                const done=i<24;
-                return <div key={i} style={{ padding:"4px 2px", borderRadius:4, textAlign:"center", background:done?C.lightBlue1:C.grey1, border:`1px solid ${done?C.lightBlue6:C.grey2}`, ...F.overline, color:done?C.lightBlue6:C.grey4 }}>{label}</div>;
-              })}
-            </div>
-          </div>
-        )}
+          {/* ── 지식맵 탭 — REQ_ILMS_GF_19 (조건부: LCMS 연동 API 확인 필요) ── */}
+          {tab==="knowledgemap" && <KnowledgeMapTab/>}
 
-        {/* 지식맵 탭 */}
-        {tab==="knowledgemap" && <KnowledgeMapTab/>}
+        </div>
       </div>
 
       {modal?.type==="play"     && <PlayModal     lesson={modal.lesson} lessonType={modal.lessonType} onClose={()=>setModal(null)}/>}
@@ -1016,14 +1824,17 @@ const StudentsPage = ({ onSelect }) => {
   const [subTab, setSubTab] = useState("today");
   const [statusFilter, setStatusFilter] = useState("all");
   const [search, setSearch] = useState("");
+  const [reportModal, setReportModal] = useState(null);
 
   const todayStudents = STUDENTS.filter(s=>s.date==="2026-05-20");
   const baseList = subTab==="today" ? todayStudents : STUDENTS;
   const displayed = baseList.filter(s=>!search||s.name.includes(search));
 
-  // 오늘학습 탭 상태 필터 (더미: 짝수=학습중, 홀수=완료)
+  // 오늘학습 탭 상태 필터 — lessonStatus 기준 (버그 수정: 이전엔 index 기반으로 잘못 분류됨)
   const finalList = subTab==="today" && statusFilter!=="all"
-    ? displayed.filter((_,i)=>statusFilter==="progress"?i%2===0:i%2!==0)
+    ? displayed.filter(s => statusFilter==="progress"
+        ? s.lessonStatus==="학습중"
+        : s.lessonStatus==="학습완료")
     : displayed;
 
   // 학습상태 뱃지 (피그마 3가지 state: 학습완료/학습중/미완료)
@@ -1177,7 +1988,7 @@ const StudentsPage = ({ onSelect }) => {
 
                       {/* 학습결과 버튼: 비활성(grey-1 bg) / 활성(white + dark border) */}
                       {isDone ? (
-                        <button onClick={()=>{}} style={{ display:"flex", alignItems:"center", gap:4, padding:"8px 16px", border:`1px solid ${C.grey8}`, borderRadius:8, ...F.caption, color:C.grey8, background:C.white, cursor:"pointer", whiteSpace:"nowrap" }}>
+                        <button onClick={()=>{ const lt = s.type==="기초평가"?"기초평가":s.type==="총괄평가"?"총괄평가":s.type==="수능모의평가"?"수능모의평가":"기본레슨"; setReportModal({lesson:s.lesson, lessonType:lt}); }} style={{ display:"flex", alignItems:"center", gap:4, padding:"8px 16px", border:"1px solid #394046", borderRadius:8, ...F.caption, color:C.grey8, background:C.white, cursor:"pointer", whiteSpace:"nowrap" }}>
                           학습결과 <span style={{ fontSize:12 }}>›</span>
                         </button>
                       ) : (
@@ -1198,6 +2009,7 @@ const StudentsPage = ({ onSelect }) => {
           </div>
         </div>
       </div>
+      {reportModal && <ReportModal lesson={reportModal.lesson} lessonType={reportModal.lessonType} onClose={()=>setReportModal(null)}/>}
     </div>
   );
 };
@@ -1206,10 +2018,12 @@ const StudentsPage = ({ onSelect }) => {
 const DiagnosisPage = () => {
   const [showReport, setShowReport] = useState(null);
   const list = [
-    { name:"김민준", grade:"중2", type:"기초평가 1", date:"2026-05-14", score:76 },
-    { name:"이서연", grade:"중1", type:"기초평가 1", date:"2026-05-13", score:68 },
-    { name:"박지호", grade:"중3", type:"총괄평가 1", date:"2026-05-10", score:83 },
-    { name:"최유나", grade:"중1", type:"총괄평가 2", date:"2026-05-08", score:71 },
+    { name:"곽규민", grade:"초등4", type:"기초평가 (진단평가)", date:"2026-04-20", score:25, lessonType:"기초평가" },
+    { name:"김보연", grade:"중등2", type:"수능모의평가 1회차",    date:"2025-08-19", score:34, lessonType:"수능모의평가" },
+    { name:"김민준", grade:"중2",   type:"기초평가 1",            date:"2026-05-14", score:76, lessonType:"기초평가" },
+    { name:"이서연", grade:"중1",   type:"기초평가 1",            date:"2026-05-13", score:68, lessonType:"기초평가" },
+    { name:"박지호", grade:"중3",   type:"총괄평가 1",            date:"2026-05-10", score:83, lessonType:"총괄평가" },
+    { name:"최유나", grade:"중1",   type:"총괄평가 2",            date:"2026-05-08", score:71, lessonType:"총괄평가" },
   ];
   return (
     <div style={{ flex:1, overflowY:"auto" }}>
@@ -1217,7 +2031,10 @@ const DiagnosisPage = () => {
       <div style={{ padding:"24px 40px" }}>
         <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:8 }}>
           <span style={{ ...F.h1, color:C.dark }}>진단평가</span>
-          <div style={{ padding:"4px 12px", background:C.lightBlue1, borderRadius:6, ...F.caption, color:C.lightBlue6 }}>기초평가(진단평가)를 진단평가 메뉴로 대체</div>
+          <div style={{ padding:"8px 14px", background:C.lightBlue1, borderRadius:6, ...F.caption, color:C.lightBlue6, lineHeight:1.6 }}>
+              ✅ <strong>v0.2 변경:</strong> 기초평가(진단평가)를 진단평가 메뉴에서 사용합니다. 진단평가 분석리포트도 함께 적용됩니다.
+              <br/><span style={{ color:C.grey5 }}>REQ_ILMS_GF_09/15 v0.2 반영 — 진단평가 미사용 → 사용으로 변경</span>
+            </div>
         </div>
         <div style={{ background:C.white, borderRadius:8, border:`1px solid ${C.grey2}`, overflow:"hidden", marginTop:16 }}>
           <div style={{ padding:"12px 16px", borderBottom:`1px solid ${C.grey2}`, display:"flex", gap:8 }}>
@@ -1253,7 +2070,7 @@ const DiagnosisPage = () => {
           </table>
         </div>
       </div>
-      {showReport && <ReportModal lesson={showReport.type} lessonType={showReport.type.includes("기초")?"기초평가":"총괄평가"} onClose={()=>setShowReport(null)}/>}
+      {showReport && <ReportModal lesson={showReport.type} lessonType={showReport.lessonType||(showReport.type.includes("기초")?"기초평가":showReport.type.includes("수능")?"수능모의평가":"총괄평가")} onClose={()=>setShowReport(null)}/>}
     </div>
   );
 };
@@ -1269,9 +2086,7 @@ const AlimtalkPage = () => {
           <span style={{ ...F.h1, color:C.dark }}>알림톡</span>
           <button style={{ padding:"0 24px", height:48, background:C.lightBlue6, color:C.white, border:"none", borderRadius:999, ...F.sub3, cursor:"pointer" }}>알림톡 발송 ({sel.length})</button>
         </div>
-        <div style={{ background:C.orange1, border:`1px solid ${C.orange6}`, borderRadius:8, padding:"10px 16px", marginBottom:16, ...F.body2, color:"#B45309" }}>
-          ⚠️ GrammarFit 알림톡 발송 정책은 미정입니다. 확정 후 업데이트 예정입니다.
-        </div>
+
         <div style={{ background:C.white, borderRadius:8, border:`1px solid ${C.grey2}`, overflow:"hidden" }}>
           <table style={{ width:"100%", borderCollapse:"collapse" }}>
             <thead>
