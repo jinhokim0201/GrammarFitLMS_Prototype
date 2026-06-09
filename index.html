@@ -2015,110 +2015,317 @@ const StudentsPage = ({ onSelect }) => {
 };
 
 // ─── 진단평가 페이지 ──────────────────────────────────────────────────────
+// ─── 진단평가 페이지 (캡처 기준: 날짜범위+라디오필터+테이블) ───────────────
 const DiagnosisPage = () => {
   const [showReport, setShowReport] = useState(null);
+  const [dateFrom, setDateFrom]     = useState("2025.12.09");
+  const [dateTo, setDateTo]         = useState("2026.06.09");
+  const [period, setPeriod]         = useState("6month");
+  const [gradeFilter, setGradeFilter]   = useState("all");
+  const [productFilter, setProductFilter] = useState("all");
+  const [nameFilter, setNameFilter]     = useState("");
+
   const list = [
-    { name:"곽규민", grade:"초등4", type:"기초평가 (진단평가)", date:"2026-04-20", score:25, lessonType:"기초평가" },
-    { name:"김보연", grade:"중등2", type:"수능모의평가 1회차",    date:"2025-08-19", score:34, lessonType:"수능모의평가" },
-    { name:"김민준", grade:"중2",   type:"기초평가 1",            date:"2026-05-14", score:76, lessonType:"기초평가" },
-    { name:"이서연", grade:"중1",   type:"기초평가 1",            date:"2026-05-13", score:68, lessonType:"기초평가" },
-    { name:"박지호", grade:"중3",   type:"총괄평가 1",            date:"2026-05-10", score:83, lessonType:"총괄평가" },
-    { name:"최유나", grade:"중1",   type:"총괄평가 2",            date:"2026-05-08", score:71, lessonType:"총괄평가" },
+    { no:1, name:"설현기", id:"0056226853", grade:"초등5", subject:"수능영어트레이닝", start:"1레벨1레슨", date:"2026.03.26", teacher:"이정숙", score:27, scoreColor:C.red6,   memberType:"정회원", lessonType:"기초평가" },
+    { no:2, name:"민현진", id:"0055555489", grade:"중등1", subject:"수능영어트레이닝", start:"1레벨1레슨", date:"2026.02.09", teacher:"이정숙", score:28, scoreColor:C.red6,   memberType:"정회원", lessonType:"기초평가" },
+    { no:3, name:"곽규민", id:"0055915927", grade:"초등4", subject:"GrammarFit",       start:"Starter 1레슨", date:"2026.04.20", teacher:"김대교", score:25, scoreColor:C.red6,   memberType:"정회원", lessonType:"기초평가" },
+    { no:4, name:"김보연", id:"0054339814", grade:"중등2", subject:"GrammarFit",       start:"1레벨1레슨", date:"2025.08.19", teacher:"김대교", score:34, scoreColor:C.orange6, memberType:"정회원", lessonType:"수능모의평가" },
   ];
+
   return (
     <div style={{ flex:1, overflowY:"auto" }}>
       <Header/>
-      <div style={{ padding:"24px 40px" }}>
-        <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:8 }}>
-          <span style={{ ...F.h1, color:C.dark }}>진단평가</span>
-          <div style={{ padding:"8px 14px", background:C.lightBlue1, borderRadius:6, ...F.caption, color:C.lightBlue6, lineHeight:1.6 }}>
-              ✅ <strong>v0.2 변경:</strong> 기초평가(진단평가)를 진단평가 메뉴에서 사용합니다. 진단평가 분석리포트도 함께 적용됩니다.
-              <br/><span style={{ color:C.grey5 }}>REQ_ILMS_GF_09/15 v0.2 반영 — 진단평가 미사용 → 사용으로 변경</span>
+      <div style={{ padding:"32px 40px" }}>
+        <div style={{ ...F.h1, color:C.dark, marginBottom:24 }}>진단평가</div>
+
+        {/* 날짜 + 기간 라디오 */}
+        <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:12,
+          padding:"16px 20px", background:C.white, borderRadius:8, border:`1px solid ${C.grey2}` }}>
+          {/* 날짜 range */}
+          <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+            <div style={{ display:"flex", alignItems:"center", gap:6, padding:"6px 12px",
+              border:`1px solid ${C.grey3}`, borderRadius:6, ...F.body2, color:C.dark, cursor:"pointer" }}>
+              <span>{dateFrom}</span>
+              <span style={{ color:C.grey4 }}>📅</span>
             </div>
-        </div>
-        <div style={{ background:C.white, borderRadius:8, border:`1px solid ${C.grey2}`, overflow:"hidden", marginTop:16 }}>
-          <div style={{ padding:"12px 16px", borderBottom:`1px solid ${C.grey2}`, display:"flex", gap:8 }}>
-            {["전체 기간","전체 학년","전체 유형"].map((t,i)=>(
-              <select key={i} style={{ padding:"4px 12px", border:`1px solid ${C.grey3}`, borderRadius:999, ...F.caption, color:C.dark }}>
-                <option>{t}</option>
-                {i===2&&<><option>기초평가</option><option>총괄평가</option></>}
-              </select>
-            ))}
+            <span style={{ color:C.grey4 }}>~</span>
+            <div style={{ display:"flex", alignItems:"center", gap:6, padding:"6px 12px",
+              border:`1px solid ${C.grey3}`, borderRadius:6, ...F.body2, color:C.dark, cursor:"pointer" }}>
+              <span>{dateTo}</span>
+              <span style={{ color:C.grey4 }}>📅</span>
+            </div>
           </div>
+          {/* 기간 라디오 */}
+          {[["today","오늘"],["7day","7일"],["1month","1개월"],["6month","6개월"],["all","기간 선택 안함"]].map(([val,label])=>(
+            <label key={val} style={{ display:"flex", alignItems:"center", gap:4, cursor:"pointer", ...F.body2, color:C.dark, whiteSpace:"nowrap" }}>
+              <input type="radio" name="period" value={val} checked={period===val}
+                onChange={()=>setPeriod(val)} style={{ accentColor:C.lightBlue6 }}/>
+              {label}
+            </label>
+          ))}
+        </div>
+
+        {/* 필터 행 */}
+        <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:20,
+          padding:"12px 20px", background:C.white, borderRadius:8, border:`1px solid ${C.grey2}` }}>
+          <select value={gradeFilter} onChange={e=>setGradeFilter(e.target.value)}
+            style={{ padding:"8px 14px", border:`1px solid ${C.grey3}`, borderRadius:6, ...F.body2, color:C.dark, cursor:"pointer" }}>
+            <option value="all">학년</option>
+            <option value="elem">초등</option>
+            <option value="mid">중등</option>
+          </select>
+          <select value={productFilter} onChange={e=>setProductFilter(e.target.value)}
+            style={{ padding:"8px 14px", border:`1px solid ${C.grey3}`, borderRadius:6, ...F.body2, color:C.dark, cursor:"pointer" }}>
+            <option value="all">제품 선택</option>
+            <option value="grammarfit">GrammarFit</option>
+            <option value="suneung">수능영어트레이닝</option>
+          </select>
+          <input value={nameFilter} onChange={e=>setNameFilter(e.target.value)}
+            placeholder="학생 이름"
+            style={{ flex:1, padding:"8px 14px", border:`1px solid ${C.grey3}`, borderRadius:6, ...F.body2, color:C.dark, outline:"none" }}/>
+          <div style={{ flex:1 }}/>
+          <button onClick={()=>{ setGradeFilter("all"); setProductFilter("all"); setNameFilter(""); setPeriod("6month"); }}
+            style={{ display:"flex", alignItems:"center", gap:4, padding:"8px 16px",
+              border:`1px solid ${C.grey3}`, borderRadius:6, background:C.white, ...F.body2, color:C.grey6, cursor:"pointer" }}>
+            ↺ 초기화
+          </button>
+          <button style={{ padding:"8px 24px", background:C.lightBlue6, border:"none",
+            borderRadius:6, ...F.sub3, color:C.white, cursor:"pointer" }}>검색</button>
+        </div>
+
+        {/* 결과 */}
+        <div style={{ ...F.sub3, color:C.dark, marginBottom:12 }}>총 {list.length}건</div>
+        <div style={{ background:C.white, borderRadius:8, border:`1px solid ${C.grey2}`, overflow:"hidden" }}>
           <table style={{ width:"100%", borderCollapse:"collapse" }}>
             <thead>
               <tr style={{ background:C.grey1 }}>
-                {["이름","학년","평가 유형","응시일","점수","결과"].map((h,i)=>(
-                  <th key={i} style={{ padding:"12px 16px", textAlign:"left", ...F.caption, color:C.grey6, borderBottom:`1px solid ${C.grey2}`, fontWeight:500 }}>{h}</th>
+                {[["번호","50px"],["이름",undefined],["학년","80px"],["과목",undefined],["출발점","110px"],["응시일","110px"],["선생님","90px"],["결과","100px"],["회원 유형","100px"]].map(([h,w])=>(
+                  <th key={h} style={{ padding:"12px 16px", textAlign:"left", ...F.caption, color:C.grey6,
+                    borderBottom:`1px solid ${C.grey2}`, fontWeight:500, width:w }}>{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {list.map((s,i)=>(
                 <tr key={i} style={{ borderBottom:`1px solid ${C.grey1}` }}>
-                  <td style={{ padding:"14px 16px", ...F.sub3, color:C.dark }}>{s.name}</td>
+                  <td style={{ padding:"14px 16px", ...F.caption, color:C.grey5 }}>{s.no}</td>
+                  <td style={{ padding:"14px 16px", ...F.sub3, color:C.dark }}>{s.name}({s.id})</td>
                   <td style={{ padding:"14px 16px", ...F.body2, color:C.grey8 }}>{s.grade}</td>
-                  <td style={{ padding:"14px 16px" }}><Badge text={s.type} variant="fill" color={s.type.includes("기초")?"blue":"orange"}/></td>
-                  <td style={{ padding:"14px 16px", ...F.caption, color:C.grey5 }}>{s.date}</td>
-                  <td style={{ padding:"14px 16px", ...F.sub3, color:s.score>=80?C.green6:C.orange6 }}>{s.score}점</td>
+                  <td style={{ padding:"14px 16px", ...F.body2, color:C.dark }}>{s.subject}</td>
+                  <td style={{ padding:"14px 16px", ...F.body2, color:C.dark }}>{s.start}</td>
+                  <td style={{ padding:"14px 16px", ...F.body2, color:C.grey8 }}>{s.date}</td>
+                  <td style={{ padding:"14px 16px", ...F.body2, color:C.grey8 }}>{s.teacher}</td>
                   <td style={{ padding:"14px 16px" }}>
-                    <button onClick={()=>setShowReport(s)} style={{ padding:"6px 16px", border:`1px solid ${C.lightBlue6}`, borderRadius:4, ...F.caption, color:C.lightBlue6, background:C.lightBlue1, cursor:"pointer" }}>리포트 보기</button>
+                    <button onClick={()=>setShowReport(s)}
+                      style={{ display:"flex", alignItems:"center", gap:4,
+                        padding:"6px 12px", border:`1px solid ${s.scoreColor}`,
+                        borderRadius:6, background:C.white, cursor:"pointer",
+                        ...F.sub3, color:s.scoreColor }}>
+                      {s.score}점 ›
+                    </button>
                   </td>
+                  <td style={{ padding:"14px 16px", ...F.body2, color:C.grey8 }}>{s.memberType}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
       </div>
-      {showReport && <ReportModal lesson={showReport.type} lessonType={showReport.lessonType||(showReport.type.includes("기초")?"기초평가":showReport.type.includes("수능")?"수능모의평가":"총괄평가")} onClose={()=>setShowReport(null)}/>}
+      {showReport && (
+        <ReportModal
+          lesson={showReport.subject}
+          lessonType={showReport.lessonType}
+          onClose={()=>setShowReport(null)}
+        />
+      )}
     </div>
   );
 };
 
-// ─── 알림톡 페이지 ────────────────────────────────────────────────────────
+// ─── 알림톡 페이지 (캡처 기준: 학생카드형 + 솔루니/GrammarFit 과목 구분) ──
 const AlimtalkPage = () => {
-  const [sel, setSel] = useState([]);
+  const [viewMode, setViewMode] = useState("list");  // list | grid
+  const [sel, setSel]           = useState([]);
+  const [allSel, setAllSel]     = useState(false);
+
+  // 학생별 알림톡 데이터 — 솔루니(기존) + GrammarFit(신규 추가)
+  const alimData = [
+    {
+      name:"김재원", grade:"초등6", id:"0054994601", phone:"010-****-1632",
+      reports: [
+        { subject:"솔루니 독서토론논술", title:"F단계 6월 1주차 <장발장> 분석리포트", status:"미발송", date:"2026.06.04", key:"s1" },
+        { subject:"솔루니 독서토론논술", title:"2026년 3월~2026년 5월 분석리포트",    status:"미발송", date:"2026.06.02", key:"s2" },
+      ],
+    },
+    {
+      name:"민세현", grade:"초등6", id:"0056227872", phone:"010-****-7377",
+      reports: [
+        { subject:"솔루니 독서토론논술", title:"F단계 5월 2주차 <세계 여러 나라를 탐구하고 세계 여행 상품 소개서 쓰기> 분析리포트", status:"발송완료", sentDate:"2026.06.05", date:"2026.06.05", key:"s3" },
+        { subject:"솔루니 독서토론논술", title:"F단계 6월 1주차 <장발장> 분析리포트", status:"미발송", date:"2026.06.05", key:"s4" },
+        { subject:"솔루니 독서토론논술", title:"2026년 3월~2026년 5월 분석리포트",    status:"미발송", date:"2026.06.02", key:"s5" },
+        { subject:"GrammarFit",          title:"Starter Lesson 24 레슨 분析리포트",   status:"미발송", date:"2026.06.01", key:"g1" },
+        { subject:"GrammarFit",          title:"Starter Lesson 23 레슨 분析리포트 (복습)", status:"미발송", date:"2026.05.30", key:"g2" },
+      ],
+    },
+    {
+      name:"박지호", grade:"중3",   id:"0056789012", phone:"010-****-3421",
+      reports: [
+        { subject:"GrammarFit", title:"총괄평가 1 분析리포트",          status:"미발송", date:"2026.05.20", key:"g3" },
+        { subject:"GrammarFit", title:"Starter Lesson 22 레슨 분析리포트", status:"발송완료", sentDate:"2026.05.18", date:"2026.05.18", key:"g4" },
+      ],
+    },
+  ];
+
+  // 전체 리포트 key 목록
+  const allKeys = alimData.flatMap(s=>s.reports.map(r=>r.key));
+
+  const toggleAll = (checked) => {
+    setAllSel(checked);
+    setSel(checked ? allKeys : []);
+  };
+  const toggleOne = (key) => {
+    setSel(prev => prev.includes(key) ? prev.filter(k=>k!==key) : [...prev, key]);
+  };
+
+  // 과목별 색상
+  const subjectColor = (subj) => subj==="GrammarFit" ? C.lightBlue6 : "#7C4DFF";
+
   return (
     <div style={{ flex:1, overflowY:"auto" }}>
       <Header/>
-      <div style={{ padding:"24px 40px" }}>
+      <div style={{ padding:"32px 40px" }}>
+
+        {/* 상단 헤더 행 */}
         <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:16 }}>
-          <span style={{ ...F.h1, color:C.dark }}>알림톡</span>
-          <button style={{ padding:"0 24px", height:48, background:C.lightBlue6, color:C.white, border:"none", borderRadius:999, ...F.sub3, cursor:"pointer" }}>알림톡 발송 ({sel.length})</button>
+          {/* 리스트/그리드 토글 */}
+          <div style={{ display:"flex", border:`1px solid ${C.grey3}`, borderRadius:8, overflow:"hidden" }}>
+            {[["list","☰"],["grid","⊞"]].map(([mode,icon])=>(
+              <button key={mode} onClick={()=>setViewMode(mode)} style={{
+                width:40, height:36, border:"none",
+                background: viewMode===mode ? C.lightBlue6 : C.white,
+                color: viewMode===mode ? C.white : C.grey5,
+                cursor:"pointer", fontSize:16,
+              }}>{icon}</button>
+            ))}
+          </div>
+          {/* 우측: 전체선택 + 발송버튼 */}
+          <div style={{ display:"flex", alignItems:"center", gap:16 }}>
+            <label style={{ display:"flex", alignItems:"center", gap:6, ...F.body2, color:C.dark, cursor:"pointer" }}>
+              <input type="checkbox" checked={allSel}
+                onChange={e=>toggleAll(e.target.checked)} style={{ accentColor:C.lightBlue6 }}/>
+              조회된 리포트 모두 선택
+            </label>
+            <button style={{ padding:"0 24px", height:44, background:C.lightBlue6,
+              border:"none", borderRadius:999, ...F.sub3, color:C.white, cursor:"pointer" }}>
+              알림톡 발송 ({sel.length})
+            </button>
+          </div>
         </div>
 
-        <div style={{ background:C.white, borderRadius:8, border:`1px solid ${C.grey2}`, overflow:"hidden" }}>
-          <table style={{ width:"100%", borderCollapse:"collapse" }}>
-            <thead>
-              <tr style={{ background:C.grey1 }}>
-                <th style={{ padding:"12px 16px", width:40 }}>
-                  <input type="checkbox" onChange={e=>setSel(e.target.checked?STUDENTS.map(s=>s.id):[])}/>
-                </th>
-                {["학생명","과목","레슨","점수","학습일","상태",""].map((h,i)=>(
-                  <th key={i} style={{ padding:"12px 16px", textAlign:"left", ...F.caption, color:C.grey6, borderBottom:`1px solid ${C.grey2}`, fontWeight:500 }}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {STUDENTS.map(s=>(
-                <tr key={s.id} style={{ borderBottom:`1px solid ${C.grey1}` }}>
-                  <td style={{ padding:"12px 16px" }}><input type="checkbox" checked={sel.includes(s.id)} onChange={()=>setSel(prev=>prev.includes(s.id)?prev.filter(x=>x!==s.id):[...prev,s.id])}/></td>
-                  <td style={{ padding:"12px 16px", ...F.sub3, color:C.dark }}>{s.name}</td>
-                  <td style={{ padding:"12px 16px" }}><Badge text="GrammarFit" variant="fill" color="blue"/></td>
-                  <td style={{ padding:"12px 16px", ...F.body2, color:C.grey8 }}>{s.lesson}</td>
-                  <td style={{ padding:"12px 16px", ...F.sub3, color:C.green6 }}>{s.score}점</td>
-                  <td style={{ padding:"12px 16px", ...F.caption, color:C.grey5 }}>{s.date}</td>
-                  <td style={{ padding:"12px 16px" }}><Badge text="미발송" variant="fill" color="gray"/></td>
-                  <td style={{ padding:"12px 16px" }}><button style={{ padding:"4px 10px", border:`1px solid ${C.grey3}`, borderRadius:4, ...F.caption, color:C.grey6, background:C.white, cursor:"pointer" }}>미리보기</button></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        {/* 안내 문구 */}
+        <div style={{ ...F.caption, color:C.grey6, marginBottom:16, lineHeight:1.8 }}>
+          • 기본 상태 : 오늘 학습 완료한 전체 회원의 알림톡 미발송 결과서를 제품별로 1건씩 보여줍니다.<br/>
+          • 체크 박스 : 수신인 전화번호가 없거나 잘못된 양식일 경우 체크박스와 미리보기가 비활성화됩니다. 뉴드림스에서 법정대리인 번호를 수정해 주세요.
         </div>
+
+        {/* 검색 조건 + 결과 수 + 정렬 */}
+        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:16 }}>
+          <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+            <span style={{ ...F.body2, color:C.grey6 }}>검색 조건 설정</span>
+            <span style={{ fontSize:16 }}>≡</span>
+            <span style={{ ...F.body2, color:C.dark }}>선택한 조건 : 7일, 전체</span>
+          </div>
+          <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+            <span style={{ ...F.body2, color:C.dark }}>
+              검색 결과 <strong>{alimData.reduce((a,s)=>a+s.reports.length,0)}건</strong>
+            </span>
+            <select style={{ padding:"6px 12px", border:`1px solid ${C.grey3}`, borderRadius:6, ...F.caption, color:C.dark }}>
+              <option>과목당 표시 개수</option>
+            </select>
+            <select style={{ padding:"6px 12px", border:`1px solid ${C.grey3}`, borderRadius:6, ...F.caption, color:C.dark }}>
+              <option>이름 오름차순 정렬</option>
+              <option>이름 내림차순 정렬</option>
+            </select>
+          </div>
+        </div>
+
+        {/* 학생 카드 목록 */}
+        <div style={{ display:"flex", flexDirection:"column", gap:16 }}>
+          {alimData.map((student, si) => {
+            // 과목별로 그룹핑
+            const subjects = [...new Set(student.reports.map(r=>r.subject))];
+            return (
+              <div key={si} style={{ background:C.white, borderRadius:8,
+                border:`1px solid ${C.grey2}`, overflow:"hidden" }}>
+                {/* 학생 헤더 */}
+                <div style={{ padding:"16px 24px", borderBottom:`1px solid ${C.grey2}` }}>
+                  <span style={{ ...F.h3, color:C.dark }}>{student.name}</span>
+                  <span style={{ ...F.body2, color:C.grey5, marginLeft:8 }}>
+                    {student.grade} | {student.id} | 수신인 {student.phone}
+                  </span>
+                </div>
+
+                {/* 과목별 리포트 목록 */}
+                {subjects.map((subj, sj) => (
+                  <div key={sj}>
+                    {/* 과목명 행 */}
+                    <div style={{ padding:"12px 24px", background:"#F8F9FA",
+                      borderBottom:`1px solid ${C.grey2}` }}>
+                      <span style={{ ...F.sub3, color:subjectColor(subj) }}>{subj}</span>
+                    </div>
+
+                    {/* 해당 과목 리포트들 */}
+                    {student.reports.filter(r=>r.subject===subj).map((report, ri) => (
+                      <div key={ri} style={{ display:"flex", alignItems:"center",
+                        padding:"14px 24px", borderBottom:`1px solid ${C.grey1}`,
+                        gap:12 }}>
+                        {/* 체크박스 */}
+                        <input type="checkbox"
+                          checked={sel.includes(report.key)}
+                          onChange={()=>toggleOne(report.key)}
+                          style={{ accentColor:C.lightBlue6, width:16, height:16, flexShrink:0 }}/>
+
+                        {/* 리포트 정보 */}
+                        <div style={{ flex:1, minWidth:0 }}>
+                          <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                            <span style={{ ...F.body2, color:C.dark }}>{report.title}</span>
+                            {/* 발송 상태 뱃지 */}
+                            {report.status==="미발송"
+                              ? <span style={{ padding:"2px 8px", borderRadius:4, background:"#FEF3F2",
+                                  border:"1px solid #EF4444", ...F.overline, color:"#EF4444", fontSize:11, flexShrink:0 }}>미발송</span>
+                              : <span style={{ padding:"2px 8px", borderRadius:4,
+                                  background:C.lightBlue1, border:`1px solid ${C.lightBlue6}`,
+                                  ...F.overline, color:C.lightBlue6, fontSize:11, flexShrink:0,
+                                  whiteSpace:"nowrap" }}>{report.sentDate} 발송</span>
+                            }
+                          </div>
+                          <div style={{ ...F.caption, color:C.grey5, marginTop:2 }}>발행일 : {report.date}</div>
+                        </div>
+
+                        {/* 우측 버튼 영역 */}
+                        <div style={{ display:"flex", alignItems:"center", gap:8, flexShrink:0 }}>
+                          <button style={{ width:32, height:32, border:`1px solid ${C.grey3}`,
+                            borderRadius:6, background:C.white, cursor:"pointer",
+                            display:"flex", alignItems:"center", justifyContent:"center",
+                            color:C.grey5, fontSize:14 }}>✏</button>
+                          <button style={{ padding:"6px 16px", border:`1px solid ${C.grey3}`,
+                            borderRadius:6, background:C.white, ...F.caption,
+                            color:C.grey6, cursor:"pointer" }}>미리보기 ›</button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ))}
+              </div>
+            );
+          })}
+        </div>
+
       </div>
     </div>
   );
 };
+
 
 // ─── 메인 앱 ──────────────────────────────────────────────────────────────
 function App() {
