@@ -2099,9 +2099,9 @@ const DiagnosisPage = () => {
           <table style={{ width:"100%", borderCollapse:"collapse" }}>
             <thead>
               <tr style={{ background:C.grey1 }}>
-                {[["번호","50px"],["이름",undefined],["학년","80px"],["과목",undefined],["출발점","110px"],["응시일","110px"],["선생님","90px"],["결과","100px"],["회원 유형","100px"]].map(([h,w])=>(
+                {[["번호","60px"],["이름",undefined],["학년","80px"],["과목",undefined],["출발점","110px"],["응시일","110px"],["선생님","90px"],["결과","100px"],["회원 유형","100px"]].map(([h,w])=>(
                   <th key={h} style={{ padding:"12px 16px", textAlign:"left", ...F.caption, color:C.grey6,
-                    borderBottom:`1px solid ${C.grey2}`, fontWeight:500, width:w }}>{h}</th>
+                    borderBottom:`1px solid ${C.grey2}`, fontWeight:500, width:w, whiteSpace:"nowrap" }}>{h}</th>
                 ))}
               </tr>
             </thead>
@@ -2117,10 +2117,11 @@ const DiagnosisPage = () => {
                   <td style={{ padding:"14px 16px", ...F.body2, color:C.grey8 }}>{s.teacher}</td>
                   <td style={{ padding:"14px 16px" }}>
                     <button onClick={()=>setShowReport(s)}
-                      style={{ display:"flex", alignItems:"center", gap:4,
-                        padding:"6px 12px", border:`1px solid ${s.scoreColor}`,
+                      style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:2,
+                        padding:"6px 10px", border:`1px solid ${s.scoreColor}`,
                         borderRadius:6, background:C.white, cursor:"pointer",
-                        ...F.sub3, color:s.scoreColor }}>
+                        ...F.sub3, color:s.scoreColor,
+                        whiteSpace:"nowrap", width:72 }}>
                       {s.score}점 ›
                     </button>
                   </td>
@@ -2265,57 +2266,72 @@ const AlimtalkPage = () => {
                   </span>
                 </div>
 
-                {/* 과목별 리포트 목록 */}
-                {subjects.map((subj, sj) => (
-                  <div key={sj}>
-                    {/* 과목명 행 */}
-                    <div style={{ padding:"12px 24px", background:"#F8F9FA",
-                      borderBottom:`1px solid ${C.grey2}` }}>
-                      <span style={{ ...F.sub3, color:subjectColor(subj) }}>{subj}</span>
-                    </div>
-
-                    {/* 해당 과목 리포트들 */}
-                    {student.reports.filter(r=>r.subject===subj).map((report, ri) => (
-                      <div key={ri} style={{ display:"flex", alignItems:"center",
-                        padding:"14px 24px", borderBottom:`1px solid ${C.grey1}`,
-                        gap:12 }}>
-                        {/* 체크박스 */}
-                        <input type="checkbox"
-                          checked={sel.includes(report.key)}
-                          onChange={()=>toggleOne(report.key)}
-                          style={{ accentColor:C.lightBlue6, width:16, height:16, flexShrink:0 }}/>
-
-                        {/* 리포트 정보 */}
-                        <div style={{ flex:1, minWidth:0 }}>
-                          <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-                            <span style={{ ...F.body2, color:C.dark }}>{report.title}</span>
-                            {/* 발송 상태 뱃지 */}
-                            {report.status==="미발송"
-                              ? <span style={{ padding:"2px 8px", borderRadius:4, background:"#FEF3F2",
-                                  border:"1px solid #EF4444", ...F.overline, color:"#EF4444", fontSize:11, flexShrink:0 }}>미발송</span>
-                              : <span style={{ padding:"2px 8px", borderRadius:4,
-                                  background:C.lightBlue1, border:`1px solid ${C.lightBlue6}`,
-                                  ...F.overline, color:C.lightBlue6, fontSize:11, flexShrink:0,
-                                  whiteSpace:"nowrap" }}>{report.sentDate} 발송</span>
-                            }
-                          </div>
-                          <div style={{ ...F.caption, color:C.grey5, marginTop:2 }}>발행일 : {report.date}</div>
-                        </div>
-
-                        {/* 우측 버튼 영역 */}
-                        <div style={{ display:"flex", alignItems:"center", gap:8, flexShrink:0 }}>
-                          <button style={{ width:32, height:32, border:`1px solid ${C.grey3}`,
-                            borderRadius:6, background:C.white, cursor:"pointer",
-                            display:"flex", alignItems:"center", justifyContent:"center",
-                            color:C.grey5, fontSize:14 }}>✏</button>
-                          <button style={{ padding:"6px 16px", border:`1px solid ${C.grey3}`,
-                            borderRadius:6, background:C.white, ...F.caption,
-                            color:C.grey6, cursor:"pointer" }}>미리보기 ›</button>
-                        </div>
+                {/* 과목별 리포트 — 캡처 기준: 과목명(좌 고정) + 리포트 목록(우) */}
+                {subjects.map((subj, sj) => {
+                  const subjReports = student.reports.filter(r=>r.subject===subj);
+                  return (
+                    <div key={sj} style={{
+                      display:"flex", alignItems:"stretch",
+                      borderBottom:`1px solid ${C.grey2}`,
+                    }}>
+                      {/* 과목명 — 좌측 고정, 세로 중앙 정렬 */}
+                      <div style={{
+                        width:160, flexShrink:0,
+                        display:"flex", alignItems:"center",
+                        padding:"0 24px",
+                        borderRight:`1px solid ${C.grey2}`,
+                      }}>
+                        <span style={{ ...F.sub3, color:subjectColor(subj) }}>{subj}</span>
                       </div>
-                    ))}
-                  </div>
-                ))}
+
+                      {/* 리포트 행들 */}
+                      <div style={{ flex:1, minWidth:0 }}>
+                        {subjReports.map((report, ri) => (
+                          <div key={ri} style={{
+                            display:"flex", alignItems:"center",
+                            padding:"14px 20px",
+                            borderBottom: ri < subjReports.length-1 ? `1px solid ${C.grey1}` : "none",
+                            gap:12,
+                          }}>
+                            {/* 체크박스 */}
+                            <input type="checkbox"
+                              checked={sel.includes(report.key)}
+                              onChange={()=>toggleOne(report.key)}
+                              style={{ accentColor:C.lightBlue6, width:16, height:16, flexShrink:0 }}/>
+
+                            {/* 리포트 정보 */}
+                            <div style={{ flex:1, minWidth:0 }}>
+                              <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                                <span style={{ ...F.body2, color:C.dark }}>{report.title}</span>
+                                {report.status==="미발송"
+                                  ? <span style={{ padding:"2px 8px", borderRadius:4,
+                                      background:"#FEF3F2", border:"1px solid #EF4444",
+                                      ...F.overline, color:"#EF4444", fontSize:11, flexShrink:0 }}>미발송</span>
+                                  : <span style={{ padding:"2px 8px", borderRadius:4,
+                                      background:C.lightBlue1, border:`1px solid ${C.lightBlue6}`,
+                                      ...F.overline, color:C.lightBlue6, fontSize:11, flexShrink:0,
+                                      whiteSpace:"nowrap" }}>{report.sentDate} 발송</span>
+                                }
+                              </div>
+                              <div style={{ ...F.caption, color:C.grey5, marginTop:2 }}>발행일 : {report.date}</div>
+                            </div>
+
+                            {/* 우측 버튼 */}
+                            <div style={{ display:"flex", alignItems:"center", gap:8, flexShrink:0 }}>
+                              <button style={{ width:32, height:32, border:`1px solid ${C.grey3}`,
+                                borderRadius:6, background:C.white, cursor:"pointer",
+                                display:"flex", alignItems:"center", justifyContent:"center",
+                                color:C.grey5, fontSize:16 }}>🔗</button>
+                              <button style={{ padding:"6px 16px", border:`1px solid ${C.grey3}`,
+                                borderRadius:6, background:C.white, ...F.caption,
+                                color:C.grey6, cursor:"pointer", whiteSpace:"nowrap" }}>미리보기 ›</button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             );
           })}
