@@ -2121,7 +2121,7 @@ const StudentsPage = ({ onSelect, onReport }) => {
 // ─── 진단평가 페이지 ──────────────────────────────────────────────────────
 // ─── 진단평가 페이지 (캡처 기준: 날짜범위+라디오필터+테이블) ───────────────
 const DiagnosisPage = ({ onReport }) => {
-  const [showReport, setShowReport] = useState(null);
+
   const [dateFrom, setDateFrom]     = useState("2025.12.09");
   const [dateTo, setDateTo]         = useState("2026.06.09");
   const [period, setPeriod]         = useState("6month");
@@ -2220,7 +2220,7 @@ const DiagnosisPage = ({ onReport }) => {
                   <td style={{ padding:"14px 16px", ...F.body2, color:C.grey8 }}>{s.date}</td>
                   <td style={{ padding:"14px 16px", ...F.body2, color:C.grey8 }}>{s.teacher}</td>
                   <td style={{ padding:"14px 16px" }}>
-                    <button onClick={()=>setShowReport(s)}
+                    <button onClick={()=>onReport&&onReport(s.subject, s.lessonType)}
                       style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:2,
                         padding:"6px 10px", border:`1px solid ${s.scoreColor}`,
                         borderRadius:6, background:C.white, cursor:"pointer",
@@ -2236,13 +2236,7 @@ const DiagnosisPage = ({ onReport }) => {
           </table>
         </div>
       </div>
-      {showReport && (
-        <ReportModal
-          lesson={showReport.subject}
-          lessonType={showReport.lessonType}
-          onClose={()=>setShowReport(null)}
-        />
-      )}
+      {/* 결과서 → App ReportPage로 전환 */}
     </div>
   );
 };
