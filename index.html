@@ -52,7 +52,7 @@ const STUDENTS = [
   { id:5, name:"정도윤", grade:"중2", memberId:"0076543210", lesson:"Starter Lesson 36 (복습)", score:78, achieveRate:null, date:"2026-05-18", type:"복습", studentType:null, lessonStatus:"학습중" },
 ];
 // HISTORY 더미 데이터
-// category: 기본레슨/복습레슨/기초평가/총괄평가/수능모의평가
+// category: 기본레슨/복습레슨/기초평가/총괄평가
 // coachingType: null=없음(기본레슨·평가), "review_ai"=복습레슨 AI 튜터 (REQ_ILMS_GF_11 삭제, REQ_ILMS_GF_12 유지)
 const HISTORY = [
   { id:1, category:"기본레슨",    progress:"Starter Lesson 24", resetCount:1, content:"현재완료 긍정문 · Grammar Check", date:"2026-05-20", lessonStatus:"학습완료", resultScore:100,  coachingType:null },
@@ -60,11 +60,8 @@ const HISTORY = [
   { id:3, category:"기본레슨",    progress:"Starter Lesson 22", resetCount:1, content:"과거시제 · Grammar Check",        date:"2026-05-16", lessonStatus:"학습완료", resultScore:88,   coachingType:null },
   { id:4, category:"총괄평가",    progress:"총괄평가 1",         resetCount:0, content:"Starter 레벨 총괄 평가 (1회차)",  date:"2026-05-14", lessonStatus:"학습완료", resultScore:83,   coachingType:null },
   { id:5, category:"기본레슨",    progress:"Starter Lesson 21", resetCount:1, content:"조동사 should / must",             date:"2026-05-12", lessonStatus:"학습완료", resultScore:95,   coachingType:null },
-  { id:6, category:"기초평가",    progress:"기초평가 1",         resetCount:0, content:"Starter 진단평가 (기초평가)",     date:"2026-05-10", lessonStatus:"학습완료", resultScore:76,   coachingType:null },
   { id:7, category:"기본레슨",    progress:"Starter Lesson 20", resetCount:1, content:"관계대명사 who / which",           date:"2026-05-08", lessonStatus:"학습중",   resultScore:50,   coachingType:null },
   { id:8, category:"복습레슨",    progress:"Starter Lesson 19", resetCount:1, content:"수동태 — Progress Test",           date:"2026-05-05", lessonStatus:"미완료",   resultScore:null, coachingType:"review_ai" },
-  { id:9, category:"수능모의평가", progress:"수능모의평가 1회차",  resetCount:1, content:"1레벨 수능모의평가 (1회차)",   date:"2026-04-15", lessonStatus:"학습완료", resultScore:34,   coachingType:null },
-  { id:10,category:"기초평가",    progress:"기초평가 (진단평가)", resetCount:0, content:"수능영어트레이닝 진단평가",   date:"2026-04-10", lessonStatus:"학습완료", resultScore:25,   coachingType:null },
 ];
 
 // 지식맵 더미 데이터: 48개 레슨별 성취도
@@ -544,301 +541,496 @@ const PlayModal = ({ lesson, lessonType, onClose }) => {
   );
 };
 
-// ─── 리포트 모달 (레슨결과서/수능모의평가/진단평가/총괄) ─────────────────────
+// ─── 리포트 페이지 (레슨결과서/진단평가/총괄평가) ─────────────────────
 const ReportPage = ({ lesson, lessonType, onClose }) => {
   const isBasic      = lessonType==="기본레슨";
   const isReview     = lessonType==="복습레슨";
   const isFoundation = lessonType==="기초평가";
-  const isSuneung    = lessonType==="수능모의평가";
   const isFinal      = lessonType==="총괄평가";
+
+  const [playOpen, setPlayOpen] = useState(false);
 
   const RS = {
     blue:"#049EDC", blueLight:"#E8F6FD", green:"#22C55E", greenLight:"#DCFCE7",
-    red:"#EF4444", redLight:"#FEE2E2", yellowBg:"#FFFBEB", yellowBorder:"#FCD34D",
+    red:"#EF4444", redLight:"#FEE2E2", orange:"#F59E0B", orangeLight:"#FFF7ED",
+    yellowBg:"#FFFBEB", yellowBorder:"#FCD34D",
     g1:"#F8F9FA", g2:"#F1F3F5", g3:"#E9ECEF", g4:"#DEE2E6",
     g5:"#ADB5BD", g6:"#868E96", g7:"#495057", g8:"#212529",
   };
 
-  const SecTitle = ({title, top}) => (
-    <div style={{fontSize:16,fontWeight:700,color:RS.g8,
-      margin:top?"0 0 14px":"24px 0 14px",paddingLeft:10,borderLeft:`4px solid ${RS.blue}`}}>{title}</div>
+  // ── 공통 요소 ────────────────────────────────────────────────────
+  const StatusBadge = () => (
+    <span style={{ display:"inline-flex", alignItems:"center", gap:4, padding:"3px 10px", borderRadius:20,
+      background:RS.orangeLight, color:"#C2410C", fontSize:12, fontWeight:600, border:`1px solid #FDBA74` }}>
+      ⏳ 주간 리포트 미확인
+    </span>
+  );
+
+  const InfoRow = ({ 진도, 날짜, 날짜라벨="학습 완료일", 학생 }) => (
+    <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center",
+      borderBottom:`4px solid ${RS.g8}`, padding:"24px 0 24px", marginBottom:16 }}>
+      {[["진도",진도],[날짜라벨,날짜],["학생정보",학생]].map(([lbl,val])=>(
+        <div key={lbl} style={{ display:"flex", alignItems:"center", gap:24 }}>
+          <span style={{ fontSize:15, fontWeight:700, color:RS.g6 }}>{lbl}</span>
+          <span style={{ fontSize:15, fontWeight:700, color:RS.g8 }}>{val}</span>
+        </div>
+      ))}
+    </div>
+  );
+
+  const SecTitle = ({title, sub}) => (
+    <div style={{fontSize:16,fontWeight:700,color:RS.g8,margin:"24px 0 14px",
+      paddingLeft:10,borderLeft:`4px solid ${RS.blue}`, display:"flex", alignItems:"center", gap:8}}>
+      {title}{sub && <span style={{fontSize:12,fontWeight:400,color:RS.g6}}>{sub}</span>}
+    </div>
   );
 
   const Gauge = ({score}) => {
     const halfCirc=195, offset=halfCirc*(1-score/100);
-    const col = score>=80?RS.green:score>=60?"#F59E0B":RS.red;
+    const col = score>=80?RS.green:score>=60?RS.orange:RS.red;
     const lv  = score>=80?"우수":score>=60?"보통":"부족";
     const lvS = score>=80?{bg:RS.greenLight,color:"#16A34A"}:score>=60?{bg:"#FEF3C7",color:"#D97706"}:{bg:RS.redLight,color:RS.red};
     return (
       <div style={{textAlign:"center"}}>
         <svg width="160" height="96" viewBox="0 0 160 96" overflow="visible">
-          <path d="M18 84 A62 62 0 0 1 142 84" fill="none" stroke={RS.g3} strokeWidth="12" strokeLinecap="round"/>
-          <path d="M18 84 A62 62 0 0 1 142 84" fill="none" stroke={col} strokeWidth="12" strokeLinecap="round"
-            strokeDasharray={halfCirc} strokeDashoffset={offset}/>
+          <path d="M18 84 A62 62 0 0 1 142 84" fill="none" stroke={RS.g4} strokeWidth="14" strokeLinecap="round"/>
+          <path d="M18 84 A62 62 0 0 1 142 84" fill="none" stroke={col} strokeWidth="14" strokeLinecap="round"
+            strokeDasharray={`${halfCirc} ${halfCirc}`} strokeDashoffset={offset}/>
           <text x="48" y="10" textAnchor="middle" fontSize="9" fill={RS.g5}>부족</text>
           <text x="80" y="4"  textAnchor="middle" fontSize="9" fill={RS.g5}>보통</text>
           <text x="114" y="10" textAnchor="middle" fontSize="9" fill={RS.g5}>우수</text>
         </svg>
-        <div style={{fontSize:36,fontWeight:700,color:RS.g8,lineHeight:1}}>{score}</div>
-        <div style={{fontSize:12,color:RS.g6,marginTop:2}}>종합 정답률 (%)</div>
+        <div style={{fontSize:36,fontWeight:700,color:RS.g8,lineHeight:1}}>{score}점</div>
         <div style={{display:"inline-block",padding:"3px 14px",borderRadius:20,fontSize:13,fontWeight:600,marginTop:6,...lvS}}>{lv}</div>
       </div>
     );
   };
 
-  const PartRow = ({name,pct,time,detail,color}) => (
-    <div>
-      <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}>
-        <span style={{fontSize:13,fontWeight:600,color:RS.g7}}>{name}</span>
-        <span><span style={{fontSize:13,fontWeight:700,color:RS.blue}}>{pct}%</span>{time&&<span style={{fontSize:12,color:RS.g6,marginLeft:8}}>{time}</span>}</span>
+  // 전체 학습 결과 요약 (공통) — REQ 항목5: 점수/학습시간/성취문구
+  const SummaryBlock = ({ score, time, studentName="김대교", showAchievement=true, timeLabel="학습 시간", children }) => (
+    <div style={{display:"grid",gridTemplateColumns:"200px 1fr",gap:24,alignItems:"center",padding:20,background:RS.g1,borderRadius:8,marginBottom:20}}>
+      <Gauge score={score}/>
+      <div style={{display:"flex",flexDirection:"column",gap:10}}>
+        <div style={{fontSize:12,color:RS.g6}}>⏱ {timeLabel} {time}</div>
+        {showAchievement && (
+          <div style={{fontSize:14,color:RS.g8}}>
+            <strong>{studentName}</strong>님의 성취 수준은 <strong style={{color:RS.blue}}>{score>=80?"우수":score>=60?"보통":"부족"}</strong>입니다.
+          </div>
+        )}
+        {children}
       </div>
-      <div style={{height:8,background:RS.g3,borderRadius:4,overflow:"hidden"}}>
-        <div style={{height:"100%",width:`${pct}%`,borderRadius:4,background:color||RS.blue}}/>
-      </div>
-      {detail&&<div style={{fontSize:11,color:RS.g5,marginTop:3}}>{detail}</div>}
     </div>
   );
 
-  const O = () => <span style={{color:RS.blue,fontSize:18,fontWeight:700}}>○</span>;
-  const X = () => <span style={{color:RS.red,fontSize:18,fontWeight:700}}>✕</span>;
+  const NoticeText = ({children}) => (
+    <div style={{fontSize:12,color:RS.g6,padding:"8px 0",display:"flex",gap:6}}>
+      <span>ⓘ</span><span>{children}</span>
+    </div>
+  );
 
-  const Diff = ({v}) => {
-    const m = {최하:{background:"#EEF2FF",color:"#4F46E5"},하:{background:RS.greenLight,color:"#15803D"},중:{background:"#FFF7ED",color:"#C2410C"},상:{background:RS.redLight,color:"#B91C1C"}};
-    return <span style={{display:"inline-block",padding:"2px 8px",borderRadius:10,fontSize:11,fontWeight:600,...(m[v]||m["중"])}}>{v}</span>;
+  const PlayBtn = () => (
+    <button onClick={()=>setPlayOpen(true)} style={{display:"inline-flex",alignItems:"center",gap:4,padding:"5px 12px",border:`1px solid ${RS.blue}`,borderRadius:4,background:"#fff",color:RS.blue,fontSize:12,fontWeight:600,cursor:"pointer",whiteSpace:"nowrap"}}>✎ 풀이 화면</button>
+  );
+
+  const TimeLabel = ({t}) => <span style={{fontSize:12,color:RS.g6}}>⏱ {t}</span>;
+
+  const O = () => <span style={{color:RS.blue,fontSize:16,fontWeight:700}}>○</span>;
+  const X = () => <span style={{color:RS.red,fontSize:16,fontWeight:700}}>✕</span>;
+
+  const CategoryBadge = ({v}) => {
+    const m = {"학교시험대비":{bg:"#EEF2FF",color:"#4F46E5"},"서술형":{bg:RS.orangeLight,color:"#C2410C"},"고난도":{bg:RS.redLight,color:"#B91C1C"}};
+    if(!v) return <span style={{color:RS.g5}}>-</span>;
+    const s = m[v] || {bg:RS.g2,color:RS.g6};
+    return <span style={{display:"inline-block",padding:"2px 8px",borderRadius:10,fontSize:11,fontWeight:600,background:s.bg,color:s.color}}>{v}</span>;
   };
 
-  const Tbl = ({heads,rows}) => (
+  const Tbl = ({heads,rows,widths}) => (
     <table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}>
       <thead><tr style={{background:RS.g1}}>
-        {heads.map((h,i)=><th key={i} style={{padding:"9px 12px",textAlign:i===1?"left":"center",color:RS.g6,fontWeight:600,fontSize:12,borderBottom:`2px solid ${RS.g4}`}}>{h}</th>)}
+        {heads.map((h,i)=><th key={i} style={{padding:"9px 10px",textAlign:"center",color:RS.g6,fontWeight:600,fontSize:12,borderBottom:`2px solid ${RS.g4}`,width:widths?widths[i]:undefined}}>{h}</th>)}
       </tr></thead>
       <tbody>{rows.map((row,ri)=>(
         <tr key={ri} style={{borderBottom:`1px solid ${RS.g3}`}}>
-          {row.map((cell,ci)=><td key={ci} style={{padding:"9px 12px",textAlign:ci===1?"left":"center",color:RS.g7,verticalAlign:"middle"}}>{cell}</td>)}
+          {row.map((cell,ci)=><td key={ci} style={{padding:"9px 10px",textAlign:"center",color:RS.g7,verticalAlign:"middle"}}>{cell}</td>)}
         </tr>
       ))}</tbody>
     </table>
   );
 
-  const RHeader = ({진도,날짜,날짜라벨}) => (
-    <div style={{paddingBottom:12,borderBottom:`2px solid ${RS.g8}`,marginBottom:24}}>
-      <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline",gap:16,flexWrap:"wrap"}}>
-        <span style={{fontSize:13,color:RS.g7}}><strong style={{color:RS.g8,fontWeight:700,marginRight:6}}>진도</strong>{진도}</span>
-        <span style={{fontSize:13,color:RS.g7}}><strong style={{color:RS.g8,fontWeight:700,marginRight:6}}>{날짜라벨||"학습완료일"}</strong>{날짜}</span>
-        <span style={{fontSize:13,color:RS.g7}}><strong style={{color:RS.g8,fontWeight:700,marginRight:6}}>학생정보</strong>김민준 중2 · 담당교사 홍경미</span>
-      </div>
-    </div>
-  );
-
-  const TotalBox = ({children}) => (
-    <div style={{background:RS.yellowBg,border:`1px solid ${RS.yellowBorder}`,borderRadius:6,padding:14,fontSize:13,color:RS.g7,lineHeight:1.8}}>{children}</div>
-  );
-
-  const PlayBtn = () => (
-    <button style={{display:"inline-flex",alignItems:"center",gap:4,padding:"5px 12px",border:`1px solid ${RS.blue}`,borderRadius:4,background:"#fff",color:RS.blue,fontSize:12,fontWeight:600,cursor:"pointer"}}>풀이 화면 ↗</button>
-  );
-
-  const SummaryGrid = ({items}) => (
-    <div style={{display:"grid",gridTemplateColumns:`repeat(${items.length},1fr)`,gap:1,background:RS.g3,border:`1px solid ${RS.g3}`,borderRadius:8,overflow:"hidden",marginBottom:20}}>
-      {items.map(([lbl,val,col,sub])=>(
-        <div key={lbl} style={{background:"#fff",padding:20,textAlign:"center"}}>
-          <div style={{fontSize:12,color:RS.g6,marginBottom:6}}>{lbl}</div>
-          <div style={{fontSize:28,fontWeight:700,color:col||RS.g8}}>{val}</div>
-          {sub&&<div style={{fontSize:12,color:RS.g5,marginTop:4}}>{sub}</div>}
-        </div>
-      ))}
-    </div>
-  );
-
-  const BarAnalysis = ({items}) => (
-    <div style={{display:"flex",flexDirection:"column",gap:10,marginBottom:20}}>
-      {items.map(([lbl,pct,col])=>(
-        <div key={lbl} style={{display:"flex",alignItems:"center",gap:12}}>
-          <span style={{fontSize:12,color:RS.g7,width:90,flexShrink:0,textAlign:"right"}}>{lbl}</span>
-          <div style={{flex:1,height:20,background:RS.g2,borderRadius:3,overflow:"hidden"}}>
-            <div style={{height:"100%",width:`${pct}%`,borderRadius:3,background:col,display:"flex",alignItems:"center",paddingLeft:8}}>
-              {pct>15&&<span style={{fontSize:11,fontWeight:700,color:"#fff"}}>{pct}%</span>}
-            </div>
+  // Grammar Practice 라운드별 결과 (기초연습/실력키우기/실력완성 공통)
+  const PracticeCorner = ({ title, totalQ, time }) => {
+    const round1Correct = Math.min(totalQ, Math.round(totalQ*0.83));
+    const round1Rate = Math.round(round1Correct/totalQ*100);
+    const round1Wrong = totalQ - round1Correct;
+    const round2Correct = round1Wrong>0 ? Math.max(0, round1Wrong-1) : null;
+    const round2Rate = round1Wrong>0 ? Math.round((round2Correct/round1Wrong)*100) : null;
+    const finalMiss = round1Wrong>0 ? Math.max(0, round1Wrong-round2Correct) : 0;
+    return (
+      <div style={{marginBottom:20}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+          <span style={{fontSize:14,fontWeight:700,color:RS.g8}}>{title}</span>
+          <div style={{display:"flex",alignItems:"center",gap:12}}>
+            <TimeLabel t={time}/>
+            <PlayBtn/>
           </div>
-          <span style={{fontSize:12,color:RS.g6,width:36,textAlign:"right"}}>{pct}%</span>
         </div>
-      ))}
+        <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:1,background:RS.g3,borderRadius:6,overflow:"hidden"}}>
+          <div style={{background:"#fff",padding:14,textAlign:"center"}}>
+            <div style={{fontSize:11,color:RS.g6,marginBottom:4}}>1 라운드</div>
+            <div style={{fontSize:18,fontWeight:700,color:RS.g8}}>{round1Correct}/{totalQ}</div>
+            <div style={{fontSize:12,color:RS.blue,fontWeight:600}}>정답률 {round1Rate}%</div>
+          </div>
+          <div style={{background:"#fff",padding:14,textAlign:"center"}}>
+            <div style={{fontSize:11,color:RS.g6,marginBottom:4}}>2 라운드</div>
+            <div style={{fontSize:18,fontWeight:700,color:RS.g8}}>{round1Wrong===0?"-":`${round2Correct}/${round1Wrong}`}</div>
+            <div style={{fontSize:12,color:RS.blue,fontWeight:600}}>{round1Wrong===0?"-":`정답률 ${round2Rate}%`}</div>
+          </div>
+          <div style={{background:"#fff",padding:14,textAlign:"center"}}>
+            <div style={{fontSize:11,color:RS.g6,marginBottom:4}}>최종 미달성</div>
+            <div style={{fontSize:18,fontWeight:700,color:finalMiss>0?RS.red:RS.g8}}>{finalMiss}문항</div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // AI 총평 4단 구성 (기본/복습 공통 포맷)
+  const AITotalReview = ({ summary, analysis, opinion, recommend }) => (
+    <div style={{background:RS.yellowBg,border:`1px solid ${RS.yellowBorder}`,borderRadius:8,padding:18,display:"flex",flexDirection:"column",gap:12}}>
+      <div><div style={{fontSize:12,fontWeight:700,color:"#B45309",marginBottom:4}}>[학습 요약]</div><div style={{fontSize:13,color:RS.g7,lineHeight:1.7}}>{summary}</div></div>
+      <div><div style={{fontSize:12,fontWeight:700,color:"#B45309",marginBottom:4}}>[AI 레슨별 학습 결과 분석]</div><div style={{fontSize:13,color:RS.g7,lineHeight:1.7}}>{analysis}</div></div>
+      <div><div style={{fontSize:12,fontWeight:700,color:"#B45309",marginBottom:4}}>[AI 종합 의견]</div><div style={{fontSize:13,color:RS.g7,lineHeight:1.7}}>{opinion}</div></div>
+      <div><div style={{fontSize:12,fontWeight:700,color:"#B45309",marginBottom:4}}>[추천 학습]</div><div style={{fontSize:13,color:RS.g7,lineHeight:1.7}}>{recommend}</div></div>
     </div>
   );
 
-  const DetailSection = ({title,time,result,children}) => (
-    <div style={{marginBottom:28}}>
+  const FooterBtns = ({ showWrongNote=true }) => (
+    <div style={{display:"flex",justifyContent:"center",gap:16,marginTop:28,paddingTop:16,borderTop:`1px solid ${RS.g3}`}}>
+      {showWrongNote && <button onClick={()=>window.print()} style={{padding:"11px 32px",border:"none",borderRadius:999,background:RS.blue,color:"#fff",fontSize:15,fontWeight:500,cursor:"pointer"}}>오답노트 인쇄</button>}
+      <button onClick={onClose} style={{padding:"11px 32px",border:`1px solid ${RS.g3}`,borderRadius:999,background:"#fff",color:RS.g8,fontSize:15,fontWeight:500,cursor:"pointer"}}>목록으로 이동</button>
+    </div>
+  );
+
+  // ══════════════════════════════════════════════════════════════
+  // 1. 기본 레슨 학습 결과서
+  // ══════════════════════════════════════════════════════════════
+  const BasicContent = () => (
+    <div>
+      <InfoRow 진도="Starter Lesson 3" 날짜="2026.04.16" 학생="김대교 초등3 0055265409"/>
+
+      <SecTitle title="전체 학습 결과 요약" sub={<span>⏱ 총 학습 시간 <strong style={{color:RS.g8}}>12분 20초</strong></span>}/>
+      <div style={{display:"grid",gridTemplateColumns:"280px 1fr",gap:0,border:`1px solid ${RS.g5}`,marginBottom:8}}>
+        <div style={{padding:"32px 20px",display:"flex",flexDirection:"column",alignItems:"center",gap:16,borderRight:`1px solid ${RS.g5}`}}>
+          <div style={{fontSize:20,fontWeight:700,color:RS.g8}}>1레벨 8레슨</div>
+          <Gauge score={70}/>
+          <div style={{fontSize:14,color:RS.g8,textAlign:"center"}}>
+            <strong>김대교</strong>님의<br/>성취 수준은 <strong style={{color:RS.orange}}>보통</strong>입니다</div>
+        </div>
+        <div style={{padding:"24px 32px",display:"flex",flexDirection:"column",gap:0}}>
+          <div style={{fontSize:17,fontWeight:700,color:RS.blueDark,marginBottom:2}}>일반동사 과거 부정문 / 의문문</div>
+          <div style={{fontSize:15,color:RS.g5,marginBottom:16}}>실전퀴즈</div>
+          {[["기초 연습 하기","8/20","87점",83],["실력 완성 하기","8/20","87점",83],["실력 키우기","8/20","87점",83]].map(([label,frac,score,pct],i)=>(
+            <div key={label} style={{padding:"14px 0",borderTop:i>0?`1px solid ${RS.g2}`:"none"}}>
+              <div style={{display:"flex",alignItems:"baseline",justifyContent:"space-between"}}>
+                <span style={{fontSize:16,fontWeight:600,color:RS.g8}}>{label}</span>
+                <div style={{display:"flex",alignItems:"baseline",gap:24}}>
+                  <span style={{fontSize:12,color:RS.g5}}>맞힌 문항 <strong style={{fontSize:16,color:RS.g8,marginLeft:4}}>{frac}</strong></span>
+                  <span style={{fontSize:12,color:RS.g5}}>점수 <strong style={{fontSize:16,color:RS.g8,marginLeft:4}}>{score}</strong></span>
+                </div>
+              </div>
+              <div style={{marginTop:8,height:6,background:RS.g3,borderRadius:3,position:"relative"}}>
+                <div style={{position:"absolute",top:0,left:0,height:6,width:`${pct}%`,background:RS.green,borderRadius:3}}></div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+      <NoticeText>Grammar Check 의 실전 퀴즈 코너로 점수를 집계합니다.</NoticeText>
+
+      <hr style={{border:"none",borderTop:`1px solid ${RS.g3}`,margin:"20px 0"}}/>
+      <SecTitle title="레슨 학습 상세 결과"/>
+
+      <div style={{fontSize:20,fontWeight:700,color:RS.g6,marginBottom:12}}>Grammar Practice</div>
+      <PracticeCorner title="기초 연습 하기" totalQ={24} time="6분 20초"/>
+      <PracticeCorner title="실력 키우기" totalQ={24} time="5분 40초"/>
+      <PracticeCorner title="실력 완성 하기" totalQ={12} time="3분 10초"/>
+      <NoticeText>Grammar Practice는 점수에 반영되지 않습니다. 2라운드는 1라운드 오답만 진행하며, 최종 미달성은 2라운드까지 맞히지 못한 문항 수입니다.</NoticeText>
+      <div style={{fontSize:20,fontWeight:700,color:RS.g6,margin:"20px 0 12px"}}>Grammar Check</div>
+
+      <div style={{marginTop:20}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+          <span style={{fontSize:14,fontWeight:700,color:RS.g8}}>실전 퀴즈</span>
+          <div style={{display:"flex",alignItems:"center",gap:12}}>
+            <TimeLabel t="8분 15초"/>
+            <PlayBtn/>
+          </div>
+        </div>
+        <Tbl heads={["번호","학습 개념 상세","구분","배점","결과"]} widths={["8%","42%","20%","15%","15%"]} rows={[
+          ["1","일반동사 과거 부정문 기본형",<CategoryBadge/>,"6점",<O/>],
+          ["2","일반동사 과거 의문문 기본형",<CategoryBadge/>,"6점",<O/>],
+          ["3","did + 동사원형",<CategoryBadge/>,"6점",<X/>],
+          ["4","과거 부정문 축약형",<CategoryBadge/>,"6점",<O/>],
+          ["5","과거 의문문 축약형",<CategoryBadge/>,"6점",<O/>],
+          ["6","did 뒤 동사원형 판별",<CategoryBadge/>,"6점",<O/>],
+          ["7","부정문 어순 배열",<CategoryBadge/>,"6점",<O/>],
+          ["8","의문문 어순 배열",<CategoryBadge/>,"6점",<O/>],
+          ["9","did/didn't 구분",<CategoryBadge/>,"6점",<O/>],
+          ["10","일반동사 과거 부정문 응용",<CategoryBadge v="학교시험대비"/>,"7점",<O/>],
+          ["11","일반동사 과거 의문문 응용",<CategoryBadge v="학교시험대비"/>,"7점",<X/>],
+          ["12","did not 축약형",<CategoryBadge v="학교시험대비"/>,"7점",<O/>],
+          ["13","과거 부정문 문장 완성",<CategoryBadge v="서술형"/>,"8점",<O/>],
+          ["14","과거 의문문 문장 완성",<CategoryBadge v="서술형"/>,"8점",<O/>],
+          ["15","불규칙 동사 과거형+서술형",<CategoryBadge v="고난도"/>,"9점",<O/>],
+        ]}/>
+      </div>
+
+      <hr style={{border:"none",borderTop:`1px solid ${RS.g3}`,margin:"20px 0"}}/>
+      <SecTitle title="총평"/>
+      <AITotalReview
+        summary="이번 레슨에서는 일반동사 과거 부정문/의문문을 학습하고, 실전 퀴즈를 통해 이해도를 점검했습니다. 학습 결과는 70점으로, 성취 수준은 보통입니다."
+        analysis="일반동사 과거 부정문의 축약형과 어순은 정확하게 이해하고 있었어요. did + 동사원형 형태에서 실수가 있었는데, 뒤에 과거형을 한 번 더 붙이는 실수가 반복되고 있습니다. 학교 시험 대비 의문문 응용 문항에서도 어순을 헷갈려 하는 모습이 보였습니다."
+        opinion="일반동사 과거 부정문의 핵심 규칙을 잘 소화한 대교의 모습이 대견합니다. did 뒤에는 동사원형만 온다는 규칙을 한 번 더 짚어주시면 다음 학습에서 실수를 줄일 수 있을 거예요."
+        recommend="워크북으로 did + 동사원형 규칙을 다시 연습해 보세요. 자주 틀린 문항을 한 번 더 확인하면 다음 학습에 도움이 됩니다."
+      />
+      <FooterBtns/>
+    </div>
+  );
+
+  // ══════════════════════════════════════════════════════════════
+  // 2. 복습 레슨 학습 결과서
+  // ══════════════════════════════════════════════════════════════
+  const ReviewContent = () => (
+    <div>
+      <InfoRow 진도="Starter Lesson 4" 날짜="2026.04.16" 학생="이서연 초등3 0056227872"/>
+
+      <SecTitle title="전체 학습 결과 요약" sub={<span>⏱ 총 학습 시간 <strong style={{color:RS.g8}}>10분 40초</strong></span>}/>
+      <div style={{display:"grid",gridTemplateColumns:"280px 1fr",gap:0,border:`1px solid ${RS.g5}`,marginBottom:8}}>
+        <div style={{padding:"32px 20px",display:"flex",flexDirection:"column",alignItems:"center",gap:16,borderRight:`1px solid ${RS.g5}`}}>
+          <div style={{fontSize:20,fontWeight:700,color:RS.g8}}>1레벨 8레슨</div>
+          <Gauge score={90}/>
+          <div style={{fontSize:14,color:RS.g8,textAlign:"center"}}>
+            <strong>이서연</strong>님의<br/>성취 수준은 <strong style={{color:RS.green}}>우수</strong>입니다
+          </div>
+        </div>
+        <div style={{padding:"24px 32px",display:"flex",flexDirection:"column",gap:0}}>
+          <div style={{fontSize:17,fontWeight:700,color:RS.blueDark,marginBottom:2}}>Review</div>
+          <div style={{fontSize:15,color:RS.g5,marginBottom:16}}>형성 평가</div>
+          {[["Lesson 1-3","8/20","87점",40],["Lesson 1-2","17/17","100점",100],["Lesson 1-1","8/20","87점",40]].map(([label,frac,score,pct],i)=>(
+            <div key={label} style={{padding:"14px 0",borderTop:i>0?`1px solid ${RS.g2}`:"none"}}>
+              <div style={{display:"flex",alignItems:"baseline",justifyContent:"space-between"}}>
+                <span style={{fontSize:16,fontWeight:600,color:RS.g8}}>{label}</span>
+                <div style={{display:"flex",alignItems:"baseline",gap:24}}>
+                  <span style={{fontSize:12,color:RS.g5}}>맞힌 문항 <strong style={{fontSize:16,color:RS.g8,marginLeft:4}}>{frac}</strong></span>
+                  <span style={{fontSize:12,color:RS.g5}}>점수 <strong style={{fontSize:16,color:RS.g8,marginLeft:4}}>{score}</strong></span>
+                </div>
+              </div>
+              <div style={{marginTop:8,height:6,background:RS.g3,borderRadius:3,position:"relative"}}>
+                <div style={{position:"absolute",top:0,left:0,height:6,width:`${pct}%`,background:RS.green,borderRadius:3}}></div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+      <NoticeText>Progress Test의 형성 평가 코너 결과로 점수를 집계합니다.</NoticeText>
+
+      <hr style={{border:"none",borderTop:`1px solid ${RS.g3}`,margin:"20px 0"}}/>
+      <SecTitle title="레슨 학습 상세 결과"/>
+      <div style={{fontSize:20,fontWeight:700,color:RS.g6,marginBottom:12}}>Progress Test</div>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
-        <span style={{fontSize:14,fontWeight:700,color:RS.g8}}>{title}</span>
+        <span style={{fontSize:17,fontWeight:700,color:RS.g8}}>형성 평가</span>
         <div style={{display:"flex",alignItems:"center",gap:12}}>
-          {time&&<span style={{fontSize:12,color:RS.g6}}>⏱ {time}</span>}
-          {result&&<span style={{fontSize:12,color:RS.g6}}>{result}</span>}
+          <TimeLabel t="10분 40초"/>
           <PlayBtn/>
         </div>
       </div>
-      {children}
-    </div>
-  );
+      <Tbl heads={["번호","학습 개념","레슨","구분","배점","결과"]} widths={["6%","28%","12%","18%","12%","24%"]} rows={(()=>{
+        const concepts = ["did + 동사원형 판별","did not 부정문 만들기","Did 의문문 만들기","일반동사 과거형 판별","did/didn't 구분","부정문 어순 배열"];
+        const rows = [];
+        for (let i=0;i<6;i++) rows.push([`${i+1}`, concepts[i], "Lesson 1", <CategoryBadge/>, "5점", i===2?<X/>:<O/>]);
+        const l2 = ["의문문 어순 배열","일반동사 과거 부정문 응용","일반동사 과거 의문문 응용","did not 축약형","과거 부정문 문장 완성","과거 의문문 문장 완성"];
+        for (let i=0;i<6;i++) rows.push([`${i+7}`, l2[i], "Lesson 2", <CategoryBadge/>, "5점", i===3?<X/>:<O/>]);
+        const l3 = [
+          ["these/those 심화", "고난도", "6점", false],
+          ["be동사 부정문 심화", "고난도", "6점", false],
+          ["지시대명사 심화", "고난도", "6점", false],
+          ["this/that 문장완성", "서술형", "7점", false],
+          ["be동사 의문문 문장완성", "서술형", "7점", false],
+          ["명사 복수형 서술형+심화", "서술형+고난도", "8점", false],
+        ];
+        l3.forEach(([concept,cat,score,wrong],i)=>{
+          rows.push([`${i+13}`, concept, "Lesson 3", <CategoryBadge v={cat}/>, score, wrong?<X/>:<O/>]);
+        });
+        return rows;
+      })()}/>
 
-  const BasicContent = () => (
-    <div>
-      <RHeader 진도="Starter Lesson 24 · 현재완료 긍정문" 날짜="2026.05.20"/>
-      <SecTitle title="레슨 학습 결과 요약" top/>
-      <div style={{display:"grid",gridTemplateColumns:"200px 1fr",gap:24,alignItems:"center",padding:20,background:RS.g1,borderRadius:8,marginBottom:24}}>
-        <Gauge score={80}/>
-        <div style={{display:"flex",flexDirection:"column",gap:14}}>
-          <div style={{fontSize:11,color:RS.g5}}>⏱ 총 학습시간 15분</div>
-          <PartRow name="Grammar Practice" pct={88} time="9분" detail="맞힌 문항 7 / 오답 1" color={RS.blue}/>
-          <PartRow name="Grammar Check"    pct={70} time="6분" detail="맞힌 문항 7 / 오답 3" color="#F59E0B"/>
-        </div>
-      </div>
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1.5fr",gap:24,marginBottom:24}}>
-        <div>
-          <div style={{fontSize:12,fontWeight:700,color:RS.g6,marginBottom:8}}>학습개념</div>
-          <div style={{fontSize:13,color:RS.g7,lineHeight:2}}>
-            · 현재완료 긍정문 (have + p.p.)<br/>· 현재완료 의문문 / 부정문<br/>· since / for 용법<br/>· 경험 / 완료 용법 구분
-          </div>
-        </div>
-        <div>
-          <div style={{fontSize:12,fontWeight:700,color:RS.g6,marginBottom:8}}>총평</div>
-          <TotalBox>김민준님의 이번 레슨 성취 수준은 <strong>보통</strong>입니다.<br/>Grammar Practice는 양호하나 Grammar Check 정답률이 낮습니다.<br/>since/for 용법과 현재완료 부정문 형태를 다시 확인하세요.</TotalBox>
-        </div>
-      </div>
       <hr style={{border:"none",borderTop:`1px solid ${RS.g3}`,margin:"20px 0"}}/>
-      <DetailSection title="Grammar Practice" time="9분">
-        <Tbl heads={["번호","개념","난이도","채점"]} rows={[
-          ["1","현재완료 긍정문 만들기",<Diff v="최하"/>,<O/>],["2","have + p.p. 형태",<Diff v="최하"/>,<O/>],
-          ["3","since 사용하기",<Diff v="하"/>,<O/>],["4","for 사용하기",<Diff v="하"/>,<O/>],
-          ["5","경험 용법 구분",<Diff v="중"/>,<O/>],["6","완료 용법 구분",<Diff v="중"/>,<O/>],
-          ["7","의문문 완성",<Diff v="중"/>,<O/>],["8","부정문 변환",<Diff v="상"/>,<X/>],
-        ]}/>
-      </DetailSection>
-      <DetailSection title="Grammar Check" time="6분">
-        <Tbl heads={["번호","개념","난이도","채점"]} rows={[
-          ["1","현재완료 의문문",<Diff v="하"/>,<O/>],["2","현재완료 부정문",<Diff v="중"/>,<X/>],
-          ["3","since/for 구분",<Diff v="중"/>,<O/>],["4","경험 용법",<Diff v="중"/>,<X/>],
-          ["5","완료 용법",<Diff v="중"/>,<O/>],["6","긍정→부정 변환",<Diff v="중"/>,<O/>],
-          ["7","have/has 구분",<Diff v="하"/>,<O/>],["8","주어에 맞는 형태",<Diff v="상"/>,<X/>],
-          ["9","시제 구분",<Diff v="상"/>,<O/>],["10","문장 완성",<Diff v="중"/>,<O/>],
-        ]}/>
-      </DetailSection>
+      <SecTitle title="총평"/>
+      <AITotalReview
+        summary="이번 레슨에서는 앞선 3개 레슨을 복습하고, 이를 바탕으로 형성 평가를 진행했습니다. 학습 결과는 90점으로, 성취 수준은 우수입니다."
+        analysis="명사의 복수형(-s) 개념은 이번 복습에서도 안정적으로 잘 유지되고 있었어요. 조금 더 어려운 심화 문항과 직접 쓰는 서술형까지 정확히 풀어냈습니다. this와 that처럼 가까운 것·먼 것을 가리키는 지시대명사를 구분하는 부분에서 실수가 있었어요. be동사로 질문을 만드는 개념에서 기본 문항 하나와, 문장을 직접 쓰는 서술형 심화 문항을 놓쳤어요."
+        opinion="명사의 복수형 개념을 심화와 서술형까지 완벽히 소화한 서연이의 모습이 대견합니다. 이 탄탄한 기초를 바탕으로 지시대명사와 be동사 의문문의 어순을 문장 쓰기로 조금만 더 다듬는다면, 다음 점검에서는 더욱 빛나는 결과를 얻을 수 있을 거예요."
+        recommend="워크북으로 이번 레슨에서 학습한 개념을 다시 복습해 보세요. 자주 틀린 개념과 문장을 한 번 더 확인하면 다음 학습에 도움이 됩니다."
+      />
+      <FooterBtns/>
     </div>
   );
 
-  const ReviewContent = () => (
-    <div>
-      <RHeader 진도="Starter Lesson 23 · Progress Test (복습)" 날짜="2026.05.18"/>
-      <SecTitle title="레슨 학습 결과 요약" top/>
-      <div style={{display:"grid",gridTemplateColumns:"200px 1fr",gap:24,alignItems:"center",padding:20,background:RS.g1,borderRadius:8,marginBottom:24}}>
-        <Gauge score={72}/>
-        <div style={{display:"flex",flexDirection:"column",gap:14}}>
-          <div style={{fontSize:11,color:RS.g5}}>⏱ 총 학습시간 12분</div>
-          <PartRow name="Progress Test" pct={72} time="12분" detail="맞힌 문항 13 / 오답 5" color={RS.blue}/>
-        </div>
-      </div>
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1.5fr",gap:24,marginBottom:24}}>
-        <div>
-          <div style={{fontSize:12,fontWeight:700,color:RS.g6,marginBottom:8}}>학습개념</div>
-          <div style={{fontSize:13,color:RS.g7,lineHeight:2}}>
-            · Lesson 21~23 핵심 문법 복습<br/>· 현재완료 / 과거시제 구분<br/>· since / for / ago 용법<br/>· 단문 → 현재완료 변환
-          </div>
-        </div>
-        <div>
-          <div style={{fontSize:12,fontWeight:700,color:RS.g6,marginBottom:8}}>총평</div>
-          <TotalBox>김민준님의 이번 복습레슨 성취 수준은 <strong>보통</strong>입니다.<br/>Progress Test에서 현재완료와 과거시제 구분에서 오답이 발생했습니다.</TotalBox>
-        </div>
-      </div>
-      <hr style={{border:"none",borderTop:`1px solid ${RS.g3}`,margin:"20px 0"}}/>
-      <DetailSection title="Progress Test" result="맞힘 13 / 오답 5">
-        <Tbl heads={["번호","개념","난이도","채점"]} rows={[
-          ["1","현재완료 긍정문",<Diff v="최하"/>,<O/>],["2","have/has 구분",<Diff v="최하"/>,<O/>],
-          ["3","since 용법",<Diff v="하"/>,<O/>],["4","for 용법",<Diff v="하"/>,<X/>],
-          ["5","현재완료 vs 과거",<Diff v="중"/>,<X/>],["6","의문문 완성",<Diff v="중"/>,<O/>],
-          ["7","부정문 변환",<Diff v="중"/>,<X/>],["8","경험 용법",<Diff v="중"/>,<O/>],
-          ["9","완료 용법",<Diff v="중"/>,<O/>],["10","문장 완성",<Diff v="상"/>,<O/>],
-        ]}/>
-      </DetailSection>
-    </div>
-  );
-
+  // ══════════════════════════════════════════════════════════════
+  // 3. 기초 평가 학습 결과서
+  // ══════════════════════════════════════════════════════════════
   const FoundationContent = () => (
     <div>
-      <RHeader 진도="기초평가 (Adaptive Test)" 날짜="2026.05.10" 날짜라벨="응시일"/>
-      <SummaryGrid items={[["점수","25점",RS.blue,"5/20문항"],["예상 출발점","Starter 1레슨",RS.g8,null],["소요 시간","8분 32초",RS.g8,"Adaptive 방식"]]}/>
-      <TotalBox>기초평가 결과 예상 출발점은 <strong>Starter 1레슨</strong>입니다.<br/>어휘력과 문장 이해력 파트의 정답률이 낮습니다.</TotalBox>
-      <SecTitle title="영역별 정답률 분석"/>
-      <BarAnalysis items={[["어휘력",40,RS.red],["문장 이해력",30,RS.red],["독해력 I",50,"#F59E0B"],["독해력 II",20,RS.red]]}/>
+      <InfoRow 진도="기초평가" 날짜="2026.04.15" 날짜라벨="응시일" 학생="곽규민 · 초등4 · 1234567890"/>
+
+      <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",border:`2px solid ${RS.g5}`,borderRadius:8,marginBottom:16,overflow:"hidden"}}>
+        {[["점수","65점/100점","24/30문항"],["소요시간","18분 05초",null],["추천 레슨","Starter Lesson 1",null]].map(([lbl,val,sub],i)=>(
+          <div key={lbl} style={{padding:"20px 24px",borderRight:i<2?`2px solid ${RS.g5}`:"none"}}>
+            <div style={{fontSize:16,fontWeight:700,color:RS.g8,marginBottom:12}}>{lbl}</div>
+            <div style={{display:"flex",alignItems:"baseline",gap:8}}>
+              <span style={{fontSize:21,fontWeight:700,color:RS.g8}}>{val}</span>
+              {sub && <span style={{fontSize:13,color:RS.g5}}>{sub}</span>}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <SecTitle title="결과 분석"/>
+      <div style={{fontSize:16,fontWeight:700,color:RS.g8,marginBottom:20}}>문법 영역별 정답률</div>
+      <div style={{display:"flex",alignItems:"flex-end",gap:0,height:180,marginBottom:8,borderBottom:`1px solid ${RS.g3}`,paddingBottom:0}}>
+        {[["명사",100],["대명사",50],["동사",80],["문장구조",30],["진행형",65],["조동사",10],["형용사/부사",0],["의문사의문문",75],["과거형",55],["to부정사/동명사",40]].map(([lbl,pct])=>(
+          <div key={lbl} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"flex-end",height:"100%"}}>
+            <span style={{fontSize:11,color:RS.g6,marginBottom:6}}>{pct}%</span>
+            <div style={{width:36,height:`${pct}%`,minHeight:pct>0?4:0,background:RS.blue,borderRadius:3}}/>
+          </div>
+        ))}
+      </div>
+      <div style={{display:"flex",marginBottom:24}}>
+        {[["명사","20/20"],["대명사","10/20"],["동사","16/20"],["문장구조","6/20"],["진행형","13/20"],["조동사","2/20"],["형용사/부사","0/20"],["의문사의문문","15/20"],["과거형","11/20"],["to부정사/동명사","8/20"]].map(([lbl,frac])=>(
+          <div key={lbl} style={{flex:1,textAlign:"center"}}>
+            <div style={{fontSize:12,color:RS.g8}}>{lbl}</div>
+            <div style={{fontSize:11,color:RS.g5,marginTop:8}}>{frac}</div>
+          </div>
+        ))}
+      </div>
+
       <hr style={{border:"none",borderTop:`1px solid ${RS.g3}`,margin:"20px 0"}}/>
-      <DetailSection title="문항별 풀이 결과">
-        <Tbl heads={["번호","영역","난이도","채점"]} rows={[
-          ["1","어휘력",<Diff v="최하"/>,<X/>],["2","어휘력",<Diff v="최하"/>,<O/>],
-          ["3","문장 이해력",<Diff v="하"/>,<X/>],["4","독해력 I",<Diff v="하"/>,<X/>],["5","독해력 II",<Diff v="중"/>,<X/>],
-        ]}/>
-      </DetailSection>
+      <SecTitle title="기초 평가 상세 결과"/>
+      <div style={{display:"flex",justifyContent:"flex-end",marginBottom:10}}><PlayBtn/></div>
+      <Tbl heads={["번호","문법 영역","학습 개념","구분","배점","결과"]} widths={["6%","18%","32%","16%","12%","16%"]} rows={(()=>{
+        const areas = ["명사","대명사","동사","문장 구조","진행형","조동사","형용사/부사","의문사 의문문","과거형","to부정사/동명사 등"];
+        const concepts = ["명사의 복수형(-s)","this/that 구분","일반동사 현재형","주어+동사+목적어","현재진행형 기본","can 긍정 · 부정문","형용사 비교급","what/where 의문문","일반동사 과거형","동명사 기본형"];
+        const rows = [];
+        // 1~10: 오답 (기본, 3점)
+        for (let i=0;i<10;i++) rows.push([`${i+1}`, areas[i], concepts[i], <CategoryBadge/>, "3점", <X/>]);
+        // 11~25: 정답 (기본, 3점) - 10개+5개
+        for (let i=0;i<15;i++) { const idx=i%10; rows.push([`${11+i}`, areas[idx], concepts[idx], <CategoryBadge/>, "3점", <O/>]); }
+        // 26~30: 정답 (고난도, 4점)
+        for (let i=0;i<5;i++) rows.push([`${26+i}`, areas[i], concepts[i]+" 심화", <CategoryBadge v="고난도"/>, "4점", <O/>]);
+        return rows;
+      })()}/>
+      <div style={{display:"flex",justifyContent:"center",marginTop:28,paddingTop:16,borderTop:`1px solid ${RS.g3}`}}>
+        <button onClick={onClose} style={{padding:"12px 60px",border:"none",borderRadius:999,background:RS.blueLight,color:RS.blueDark,fontSize:15,fontWeight:500,cursor:"pointer"}}>목록으로</button>
+      </div>
     </div>
   );
 
-  const SuneungContent = () => (
-    <div>
-      <RHeader 진도="수능모의평가 1회차" 날짜="2026.04.15" 날짜라벨="응시일"/>
-      <SummaryGrid items={[["점수","34점",RS.blue,"6/18문항"],["단원평가 정답률","34%",RS.g8,"⚠ 부진"],["소요 시간","4분 7초",RS.g8,null]]}/>
-      <TotalBox>수능모의평가 1회차 학습결과가 <strong>부진</strong>합니다.<br/>과학/기술 소재와 예술/문학 소재의 정답률이 전반적으로 낮습니다.</TotalBox>
-      <SecTitle title="소재별 정답률 분석"/>
-      <BarAnalysis items={[["인문/철학",50,"#F59E0B"],["과학/기술",25,RS.red],["사회/문화",60,RS.blue],["예술/문학",20,RS.red]]}/>
-      <hr style={{border:"none",borderTop:`1px solid ${RS.g3}`,margin:"20px 0"}}/>
-      <DetailSection title="문항별 풀이 결과" result="맞힘 6 / 오답 12">
-        <Tbl heads={["번호","소재","유형","난이도","채점"]} rows={[
-          ["18","인문","글의 목적",<Diff v="상"/>,<X/>],["19","과학","글의 요지",<Diff v="중"/>,<X/>],
-          ["20","사회","글의 주제",<Diff v="하"/>,<O/>],["21","예술","빈칸 추론",<Diff v="최하"/>,<X/>],
-          ["22","인문","지칭 추론",<Diff v="중"/>,<O/>],["23","과학","심경 변화",<Diff v="상"/>,<X/>],
-        ]}/>
-      </DetailSection>
-    </div>
-  );
-
+  // ══════════════════════════════════════════════════════════════
+  // 4. 총괄 평가 학습 결과서
+  // ══════════════════════════════════════════════════════════════
   const FinalContent = () => (
     <div>
-      <RHeader 진도="총괄평가 1회" 날짜="2026.05.14" 날짜라벨="응시일"/>
-      <SummaryGrid items={[["점수","83점",RS.blue,"16/20문항"],["총괄평가 정답률","83%",RS.g8,"✓ 우수"],["소요 시간","18분",RS.g8,null]]}/>
-      <SecTitle title="레슨 학습 결과 요약"/>
-      <div style={{display:"grid",gridTemplateColumns:"200px 1fr",gap:24,alignItems:"center",padding:20,background:RS.g1,borderRadius:8,marginBottom:24}}>
-        <Gauge score={83}/>
-        <div style={{display:"flex",flexDirection:"column",gap:14}}>
-          <div style={{fontSize:11,color:RS.g5}}>⏱ 총 학습시간 18분</div>
-          <PartRow name="어휘·문법" pct={90} detail="맞힌 문항 9 / 오답 1" color={RS.green}/>
-          <PartRow name="독해"      pct={75} detail="맞힌 문항 6 / 오답 2" color={RS.blue}/>
-        </div>
+      <InfoRow 진도="Starter 총괄평가 1" 날짜="2026.04.15" 날짜라벨="응시일" 학생="김대교 · 초등3 · 1234567890"/>
+
+      <div style={{display:"grid",gridTemplateColumns:"repeat(2,1fr)",border:`2px solid ${RS.g4}`,borderRadius:8,marginBottom:16,overflow:"hidden"}}>
+        {[["점수","94점/100점","20/20문항"],["소요시간","22분 10초",null]].map(([lbl,val,sub],i)=>(
+          <div key={lbl} style={{padding:"20px 24px",borderRight:i<1?`2px solid ${RS.g4}`:"none"}}>
+            <div style={{fontSize:16,fontWeight:700,color:RS.g8,marginBottom:12}}>{lbl}</div>
+            <div style={{display:"flex",alignItems:"baseline",gap:8}}>
+              <span style={{fontSize:21,fontWeight:700,color:RS.g8}}>{val}</span>
+              {sub && <span style={{fontSize:13,color:RS.g5}}>{sub}</span>}
+            </div>
+          </div>
+        ))}
       </div>
-      <TotalBox>김민준님의 총괄평가 성취 수준은 <strong>우수</strong>합니다.<br/>어휘·문법 파트에서 높은 정답률을 보였으나 독해 파트에서 일부 오답이 발생했습니다.</TotalBox>
+
+      <div style={{fontSize:17,fontWeight:700,color:RS.g8,marginBottom:12}}>총괄 평가 1</div>
+      <div style={{display:"flex",flexDirection:"column",gap:8,marginBottom:16}}>
+        {[["명사","3/3","15점"],["대명사","3/3","15점"],["의문사의문문","2/2","14점"],["일반동사과거형","3/3","15점"],["to부정사/동명사 등","4/4","20점"]].map(([lbl,frac,score])=>(
+          <div key={lbl} style={{display:"flex",alignItems:"center",padding:"12px 24px",background:RS.g1,borderRadius:8}}>
+            <span style={{fontSize:15,color:RS.g8,flex:1}}>{lbl}</span>
+            <span style={{fontSize:15,color:RS.g6,width:80,textAlign:"center",flexShrink:0}}>{frac}</span>
+            <span style={{fontSize:14,fontWeight:700,color:RS.blue,width:70,textAlign:"center",background:"#fff",border:`1px solid ${RS.g3}`,borderRadius:8,padding:"4px 0",flexShrink:0,marginLeft:24}}>{score}</span>
+          </div>
+        ))}
+      </div>
+
+      <SecTitle title="정답률 분석"/>
+      <div style={{fontSize:16,fontWeight:700,color:RS.g8,marginBottom:10}}>문법 영역별 정답률 비교</div>
+      <div style={{fontSize:11,color:RS.g6,marginBottom:10,display:"flex",gap:16}}>
+        <span><span style={{display:"inline-block",width:10,height:10,background:RS.g4,borderRadius:2,marginRight:4}}/>기초평가</span>
+        <span><span style={{display:"inline-block",width:10,height:10,background:RS.blue,borderRadius:2,marginRight:4}}/>총괄평가</span>
+      </div>
+      <div style={{display:"flex",alignItems:"flex-end",gap:0,height:140,marginBottom:8,borderBottom:`1px solid ${RS.g3}`}}>
+        {[["명사",30,70],["대명사",30,70],["의문사의문문",30,70],["일반동사과거형",30,70],["to부정사/동명사",30,70]].map(([lbl,before,after])=>(
+          <div key={lbl} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"flex-end",height:"100%"}}>
+            <span style={{fontSize:11,fontWeight:700,color:RS.blueDark,marginBottom:4}}>{after}%</span>
+            <div style={{display:"flex",gap:4,alignItems:"flex-end"}}>
+              <div style={{width:16,height:before,background:RS.g4,borderRadius:3}}/>
+              <div style={{width:16,height:after,background:RS.blue,borderRadius:3}}/>
+            </div>
+          </div>
+        ))}
+      </div>
+      <div style={{display:"flex",marginBottom:24}}>
+        {["명사","대명사","의문사의문문","일반동사과거형","to부정사/동명사"].map(lbl=>(
+          <div key={lbl} style={{flex:1,textAlign:"center",fontSize:12,color:RS.g8}}>{lbl}</div>
+        ))}
+      </div>
+
       <hr style={{border:"none",borderTop:`1px solid ${RS.g3}`,margin:"20px 0"}}/>
-      <DetailSection title="문항별 풀이 결과" result="맞힘 16 / 오답 4">
-        <Tbl heads={["번호","영역","개념","난이도","채점"]} rows={[
-          ["1","어휘","현재완료 어휘",<Diff v="최하"/>,<O/>],["2","문법","have/has 구분",<Diff v="하"/>,<O/>],
-          ["3","문법","since/for 용법",<Diff v="하"/>,<X/>],["4","독해","단문 독해",<Diff v="중"/>,<O/>],
-          ["5","독해","중문 독해",<Diff v="중"/>,<X/>],["6","어휘","관련 어휘",<Diff v="하"/>,<O/>],
-          ["7","문법","부정문 변환",<Diff v="중"/>,<O/>],["8","독해","주제 파악",<Diff v="상"/>,<X/>],
-        ]}/>
-      </DetailSection>
+      <SecTitle title="총괄 평가 1 상세 결과"/>
+      <div style={{display:"flex",justifyContent:"flex-end",marginBottom:10}}><PlayBtn/></div>
+      <Tbl heads={["번호","문법 영역","학습 개념","구분","배점","결과"]} widths={["6%","18%","32%","16%","12%","16%"]} rows={(()=>{
+        const areas = ["명사","대명사","동사","문장 구조","의문사 의문문","과거형","to부정사/동명사 등"];
+        const concepts = ["명사의 복수형(-s/-es)","this/that/these/those","be동사 긍정 · 부정 · 의문문","기본 어순","what/where/who","일반동사 과거 부정문 · 의문문","동명사 기본형"];
+        const rows = [];
+        for (let i=0;i<15;i++) {
+          const idx = i%7;
+          const isHard = (i===1||i===6);
+          rows.push([`${i+1}`, areas[idx], concepts[idx], isHard?<CategoryBadge v="고난도"/>:<CategoryBadge/>, isHard?"8점":"6점", <O/>]);
+        }
+        return rows;
+      })()}/>
+      <div style={{display:"flex",justifyContent:"center",marginTop:28,paddingTop:16,borderTop:`1px solid ${RS.g3}`}}>
+        <button onClick={onClose} style={{padding:"12px 60px",border:"none",borderRadius:999,background:RS.blueLight,color:RS.blueDark,fontSize:15,fontWeight:500,cursor:"pointer"}}>목록으로</button>
+      </div>
     </div>
   );
 
   return (
-    <div style={{ flex:1, display:"flex", flexDirection:"column", background:C.grey1, overflowY:"auto" }}>
-      <div style={{ background:C.white, borderBottom:`1px solid ${C.grey2}`, padding:"0 40px", height:56,
+    <div style={{ flex:1, display:"flex", flexDirection:"column", background:C.white, overflowY:"auto" }}>
+      <div style={{ background:C.white, borderBottom:`1px solid ${C.grey2}`, padding:"0 40px", height:52,
         display:"flex", alignItems:"center", justifyContent:"space-between", flexShrink:0 }}>
-        <button onClick={onClose} style={{ display:"flex", alignItems:"center", gap:6, background:"none", border:"none", cursor:"pointer", ...F.body2, color:C.grey6 }}>
-          ← 돌아가기
+        <div style={{ display:"flex", alignItems:"center", gap:12 }}>
+          <button onClick={onClose} style={{ background:"none", border:"none", cursor:"pointer", ...F.body2, color:C.grey6, fontSize:18, lineHeight:1 }}>
+            ←
+          </button>
+          <span style={{ ...F.body2, color:C.dark, fontWeight:700 }}>GrammarFit</span>
+          <span style={{ ...F.body2, color:C.lightBlue6, fontWeight:700 }}>
+            {isBasic?"기본 레슨 학습 결과서":isReview?"복습 레슨 학습 결과서":isFoundation?"기초 평가 학습 결과서":"총괄 평가 학습 결과서"}
+          </span>
+        </div>
+        <button onClick={()=>window.print()} style={{ padding:"8px 24px", background:C.lightBlue6, border:"none", borderRadius:6, ...F.body2, color:C.white, cursor:"pointer", fontWeight:600 }}>
+          인쇄
         </button>
-        <span style={{ ...F.h2, color:C.dark }}>분석리포트</span>
-        <div style={{ width:80 }}/>
       </div>
-      <div style={{ maxWidth:960, width:"100%", margin:"0 auto", padding:"32px 40px", fontSize:13 }}>
+      <div style={{ maxWidth:1080, width:"100%", margin:"0 auto", padding:"32px 40px", fontSize:13 }}>
         {isBasic      && <BasicContent/>}
         {isReview     && <ReviewContent/>}
         {isFoundation && <FoundationContent/>}
-        {isSuneung    && <SuneungContent/>}
         {isFinal      && <FinalContent/>}
       </div>
+      {playOpen && <PlayModal lesson={lesson} lessonType={lessonType} onClose={()=>setPlayOpen(false)}/>}
     </div>
   );
 };
@@ -1466,9 +1658,7 @@ const StudentDetail = ({ student, onBack, onReport }) => {
                     <option>레슨</option>
                     <option>기본레슨</option>
                     <option>복습레슨</option>
-                    <option>기초평가</option>
                     <option>총괄평가</option>
-                    <option>수능모의평가</option>
                   </select>
                   <select style={{ height:48, padding:"0 16px", border:`1px solid ${C.grey3}`, borderRadius:8, ...F.body2, color:C.dark, cursor:"pointer", minWidth:148 }}>
                     <option>학습상태 선택</option>
@@ -1533,7 +1723,7 @@ const StudentDetail = ({ student, onBack, onReport }) => {
                       <td style={{ padding:"12px 10px" }}><LessonStatusBadge status={l.lessonStatus}/></td>
                       <td style={{ padding:"8px 10px" }}><ResultBtn score={l.resultScore} lesson={l.progress} lessonType={l.category}/></td>
                       <td style={{ padding:"8px 6px" }}>
-                        {(l.category==="기본레슨"||l.category==="복습레슨"||l.category==="수능모의평가") && l.lessonStatus!=="학습대기" ? (
+                        {(l.category==="기본레슨"||l.category==="복습레슨") && l.lessonStatus!=="학습대기" ? (
                           <div style={{ display:"flex", alignItems:"center", gap:4 }}>
                             <button onClick={()=>setModal({type:"play",lesson:l.progress,lessonType:l.category})}
                               style={{ padding:"5px 8px", borderRadius:6, background:C.white, border:"1px solid #045F84", ...F.caption, color:"#045F84", cursor:"pointer", whiteSpace:"nowrap", fontSize:12 }}>
@@ -2019,7 +2209,7 @@ const StudentsPage = ({ onSelect, onReport }) => {
                             {s.score != null ? <span style={{ ...F.body2, color: s.score < 60 ? C.red6 : C.dark }}>{s.score}점</span> : <span style={{ ...F.body2, color:C.grey5 }}>-</span>}
                           </div>
                           {isDone ? (
-                            <button onClick={()=>{ const lt = s.type==="기초평가"?"기초평가":s.type==="총괄평가"?"총괄평가":s.type==="수능모의평가"?"수능모의평가":"기본레슨"; onReport&&onReport(s.lesson,lt); }} style={{ display:"flex", alignItems:"center", gap:4, padding:"8px 16px", border:"1px solid #394046", borderRadius:8, ...F.caption, color:C.grey8, background:C.white, cursor:"pointer", whiteSpace:"nowrap" }}>
+                            <button onClick={()=>{ const lt = s.type==="기초평가"?"기초평가":s.type==="총괄평가"?"총괄평가":"기본레슨"; onReport&&onReport(s.lesson,lt); }} style={{ display:"flex", alignItems:"center", gap:4, padding:"8px 16px", border:"1px solid #394046", borderRadius:8, ...F.caption, color:C.grey8, background:C.white, cursor:"pointer", whiteSpace:"nowrap" }}>
                               학습결과 <span style={{ fontSize:12 }}>›</span>
                             </button>
                           ) : (
@@ -2133,7 +2323,7 @@ const DiagnosisPage = ({ onReport }) => {
     { no:1, name:"설현기", id:"0056226853", grade:"초등5", subject:"수능영어트레이닝", start:"1레벨1레슨", date:"2026.03.26", teacher:"이정숙", score:27, scoreColor:C.red6,   memberType:"정회원", lessonType:"기초평가" },
     { no:2, name:"민현진", id:"0055555489", grade:"중등1", subject:"수능영어트레이닝", start:"1레벨1레슨", date:"2026.02.09", teacher:"이정숙", score:28, scoreColor:C.red6,   memberType:"정회원", lessonType:"기초평가" },
     { no:3, name:"곽규민", id:"0055915927", grade:"초등4", subject:"GrammarFit",       start:"Starter 1레슨", date:"2026.04.20", teacher:"김대교", score:25, scoreColor:C.red6,   memberType:"정회원", lessonType:"기초평가" },
-    { no:4, name:"김보연", id:"0054339814", grade:"중등2", subject:"GrammarFit",       start:"1레벨1레슨", date:"2025.08.19", teacher:"김대교", score:34, scoreColor:C.orange6, memberType:"정회원", lessonType:"수능모의평가" },
+    { no:4, name:"김보연", id:"0054339814", grade:"중등2", subject:"GrammarFit",       start:"1레벨1레슨", date:"2025.08.19", teacher:"김대교", score:34, scoreColor:C.orange6, memberType:"정회원", lessonType:"총괄평가" },
   ];
 
   return (
